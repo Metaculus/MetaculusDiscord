@@ -2,7 +2,9 @@
 using Discord.Addons.Hosting;
 using Discord.Commands;
 using Discord.WebSocket;
+using MetaculusDiscord.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +26,7 @@ public class Program
             }).ConfigureLogging(x =>
             {
                 x.AddConsole();
-                x.SetMinimumLevel(LogLevel.Information);
+                x.SetMinimumLevel(LogLevel.Debug);
             }).ConfigureDiscordHost((context, config) =>
             {
                 config.SocketConfig = new DiscordSocketConfig
@@ -38,7 +40,8 @@ public class Program
             })
             .ConfigureServices((context, services) =>
             {
-                // services.AddHostedService<...>();
+                services.AddHostedService<CommandHandler>();
+                
             })
             .UseConsoleLifetime();
         var host = builder.Build();
@@ -46,6 +49,7 @@ public class Program
         {
             await host.RunAsync();
         }
+
     }
 
     private Task Log(LogMessage msg)
