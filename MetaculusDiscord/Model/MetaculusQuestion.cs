@@ -1,6 +1,6 @@
 namespace MetaculusDiscord.Model;
 
-public class Question
+public class MetaculusQuestion
 {
-    
+    public int Id { get; set; }
 }

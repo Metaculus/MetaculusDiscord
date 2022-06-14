@@ -1,19 +1,20 @@
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using Discord;
 using Discord.Commands;
+using MetaculusDiscord.Model;
 using Newtonsoft.Json;
 
 namespace MetaculusDiscord.Modules;
-public class RandomCommandsModule : ModuleBase<SocketCommandContext>
+public class SearchCommands : BotModuleBase
 {
-    private static readonly HttpClient _httpClient = new HttpClient();
-
+    
     private static Task<string?> GetStringResponse(string url)
     {
         try
         {
-            return _httpClient.GetStringAsync(url)!;
+            return HttpClient.GetStringAsync(url)!;
         }
         catch (Exception e)
         {
@@ -22,6 +23,8 @@ public class RandomCommandsModule : ModuleBase<SocketCommandContext>
     }
 
     private const int QueryResults = 5;
+    
+    
     [Command("search")]
     [Alias("s")]
     public async Task SearchAsync(params string[] querys)
@@ -42,14 +45,42 @@ public class RandomCommandsModule : ModuleBase<SocketCommandContext>
            dynamic results = root.results;
            string[] names = new string[QueryResults];
            string[] links = new string[QueryResults];
-            for (int i = 0; (i < results.Count && i<QueryResults); i++)
-            {
-                var queryResult = results[i];
-                
-                await Context.Channel.SendMessageAsync($"Result {i + 1}: {queryResult.title} https://www.metaculus.com{queryResult.page_url}");
-                // Context.Channel.SendMessageAsync(embed: CreateEmbed())
-            }
+           if (results.Count == 0)
+           { 
+               await Context.Message.ReplyAsync($"No results for query: {query}");
+               return;
+           }
+           if (results.Count == 1)
+           {
+               PostLink($"https://www.metaculus.com{(string) results[0].page_url}");
+               return;
+           }
+           var newMessageParts = new List<string>();
+           for (int i = 0; (i < results.Count && i < QueryResults); i++)
+           {
+               var queryResult = results[i];
+
+               newMessageParts.Add($"Result {i + 1}: {queryResult.title}, Published: {queryResult.publish_time}");
+               links[i] = queryResult.page_url;
+           }
+                 
+
+           var newMessageString = string.Join("\n", newMessageParts);
+           var predictionReply = await Context.Channel.SendMessageAsync(newMessageString);
+           var x = new BasicMetaculusResponse(predictionReply.Id, links);
+           Data.AddResponse(x);
+           var emojis = Utils.EmotesUtils.GetEmojiNumbersDict();
+           for (int i = 1; i < newMessageParts.Count+1; i++)
+           {
+               await predictionReply.AddReactionAsync(emojis[i]);
+           }
+            
         }
+    }
+
+    private void PostLink(string s)
+    {
+        Context.Channel.SendMessageAsync(s);
     }
 
     public Embed CreateEmbed()
@@ -64,5 +95,8 @@ public class RandomCommandsModule : ModuleBase<SocketCommandContext>
     {
         await Context.Channel.SendMessageAsync(("aaaaaaaaa"));
     }
-    
+
+    public SearchCommands(Data.Data data) : base(data)
+    {
+    }
 }
