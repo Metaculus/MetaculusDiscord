@@ -4,26 +4,37 @@ namespace MetaculusDiscord.Data;
 
 public class Data
 {
-    private TransientStorage<BasicMetaculusResponse> _responses;
+    private TransientStorage<ResponseLinks> _responses;
+
 
     public Data()
     {
-        _responses = new TransientStorage<BasicMetaculusResponse>();
+        _responses = new TransientStorage<ResponseLinks>();
     }
 
-    public void AddResponse(BasicMetaculusResponse response)
+    public void StoreLinks(ResponseLinks responseLinks)
     {
-        _responses.Add(response);
+        _responses.Add(responseLinks);
     }
 
-    public BasicMetaculusResponse GetResponse(ulong id) => _responses.Get(id);
+    public ResponseLinks GetResponse(ulong id)
+    {
+        return _responses.Get(id);
+    }
 }
+
 // what does not need to be put into a database
 public class TransientStorage<T> where T : IIdentifiable
 {
-    private Dictionary<ulong, T> _dictionary = new Dictionary<ulong, T>();
-    public void Add(T item) => _dictionary.Add(item.Id, item);
-    public T Get(ulong id) => _dictionary[id];
+    private readonly Dictionary<ulong, T> _dictionary = new();
 
+    public void Add(T item)
+    {
+        _dictionary.Add(item.Id, item);
+    }
 
+    public T Get(ulong id)
+    {
+        return _dictionary[id];
+    }
 }

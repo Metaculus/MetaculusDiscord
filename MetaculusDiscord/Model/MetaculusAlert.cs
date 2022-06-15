@@ -8,7 +8,7 @@ public class MetaculusAlert
     public int QuestionId { get; set; }
     public DateTime Created { get; set; }
     public DateTime LastAlert { get; set; }
-    
+
 
     public MetaculusAlert(ulong channelId, ulong userId, int questionId, DateTime created, DateTime lastAlert)
     {

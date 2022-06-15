@@ -1,19 +1,17 @@
 namespace MetaculusDiscord.Model;
 
-public class BasicMetaculusResponse : BasicQuestionResponse
+public class ResponseLinks : BasicQuestionResponse
 {
     public string[] Links { get; set; } = new string[5];
 
-    public BasicMetaculusResponse(ulong id, ICollection<string> endings)
+    public ResponseLinks(ulong id, IEnumerable<string> endings)
     {
         Id = id;
-        int i = 0;
+        var i = 0;
         foreach (var link in endings)
         {
             Links[i] = $"https://www.metaculus.com{link}";
             if (++i == Links.Length) break;
         }
-        
     }
-
 }
