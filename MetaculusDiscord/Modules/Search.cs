@@ -67,9 +67,8 @@ public class Search
     public class SearchSlash : BotInteractionModuleBase
     {
         [SlashCommand("metaculus", "")]
-        public async Task Command(string query)
-        {
-            Console.WriteLine(query);
+        public async Task SearchCommand(string query)
+        {   // there are only 3 seconds to respond, so first we have to
             await RespondAsync($"searching {query}...");
             var response = await SearchAsync(query);
             var replyText = await CreateResponseText(query, response);
@@ -110,7 +109,7 @@ public class Search
         if (jsonString is null) return null;
         var root = JsonConvert.DeserializeObject<dynamic>(jsonString);
         var results = root?.results;
-        if (results is null) return null;
+        if (results is null || results.Count == 0) return null;
         var response = new MetaculusSearchResponse();
         for (var i = 0; i < results.Count; i++)
         {

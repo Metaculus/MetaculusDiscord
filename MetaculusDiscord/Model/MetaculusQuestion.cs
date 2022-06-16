@@ -1,7 +1,8 @@
 namespace MetaculusDiscord.Model;
-
+enum QuestionType { Continuous, Binary, Date}
 public class MetaculusQuestion
 {
+    
     public int Id { get; }
     public string Title { get; }
     public string PageUrl { get; }

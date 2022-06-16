@@ -1,8 +1,12 @@
 namespace MetaculusDiscord.Model;
 
-public class ResponseLinks : BasicQuestionResponse
+public interface IIdentifiable {
+    ulong Id { get; }
+}
+public class ResponseLinks : IIdentifiable
 {
-    public string[] Links { get; set; } = new string[5];
+    public ulong Id { get; set; }
+    public string[] Links { get; } = new string[5];
 
     public ResponseLinks(ulong id, IEnumerable<string> endings)
     {
