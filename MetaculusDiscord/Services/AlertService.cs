@@ -6,11 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace MetaculusDiscord.Services;
 
-public class Alerts : DiscordClientService
+public class AlertService : DiscordClientService
 {
     private Data.Data _data;
 
-    public Alerts(DiscordSocketClient client, ILogger<DiscordClientService> logger, Data.Data data) : base(client,
+    public AlertService(DiscordSocketClient client, ILogger<DiscordClientService> logger, Data.Data data) : base(client,
         logger)
     {
         _data = data;
@@ -19,7 +19,7 @@ public class Alerts : DiscordClientService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var aTimer = // 6 hours
-            new System.Timers.Timer(6 * 60 * 60 * 1000); 
+            new System.Timers.Timer(6 * 60 * 60 * 1000);
         aTimer.Elapsed += ProcessUpdates;
         aTimer.Start();
     }

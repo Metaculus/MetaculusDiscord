@@ -1,22 +1,24 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace MetaculusDiscord.Model;
-public delegate bool Resolution<in T,in Q>(T t, Q q);
-// todo completely redesign this
-public abstract class QuestionAlert
+
+public abstract class QuestionAlert //: IIdentifiable<ulong>
 {
-    public ulong AlertId { get; set; }
-    public ulong QuestionId { get; set; }
-    public Resolution<QuestionAlert,Question> Updated;
-    public Resolution<QuestionAlert,Question> Resolved;
-    public abstract bool Update(Question q);
-    public abstract bool Resolve(Question q);
+    [Key]
+    [Column("alert_id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+
+    [Column("question_id")] public ulong QuestionId { get; set; }
 }
 
-public abstract class PersonalQuestionAlert : QuestionAlert
+public class UserQuestionAlert : QuestionAlert
 {
-    public ulong UserId { get; set; }
+    [Column("user_id")] public ulong UserId { get; set; }
 }
 
-public abstract class ChannelQuestionAlert : QuestionAlert
+public class ChannelQuestionAlert : QuestionAlert
 {
-    public ulong ChannelId { get; set; }
+    [Column("channel_id")] public ulong ChannelId { get; set; }
 }

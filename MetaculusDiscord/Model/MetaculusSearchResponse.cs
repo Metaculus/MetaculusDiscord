@@ -3,17 +3,17 @@ namespace MetaculusDiscord.Model;
 public class MetaculusSearchResponse
 {
     private const int MaxResponses = 5;
-    public MetaculusQuestion[] Questions { get; } = new MetaculusQuestion[5];
-    public int Index { get; private set; } = 0;
+    public SearchResultQuestion[] Questions { get; } = new SearchResultQuestion[5];
+    public int Count { get; private set; } = 0;
 
     /// <summary>
     /// 
     /// </summary>
     /// <returns>whether the Response has more capacity</returns>
-    public bool AddQuestion(ref MetaculusQuestion q)
+    public bool AddQuestion(SearchResultQuestion q)
     {
-        if (Index >= MaxResponses) return false;
-        Questions[Index++] = q;
-        return Index < MaxResponses;
+        if (Count >= MaxResponses) return false;
+        Questions[Count++] = q;
+        return Count < MaxResponses;
     }
 }

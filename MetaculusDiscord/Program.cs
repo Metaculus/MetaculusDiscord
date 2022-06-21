@@ -4,6 +4,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using MetaculusDiscord.Data;
 using MetaculusDiscord.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -37,15 +38,17 @@ public class Program
                 config.SocketConfig = new DiscordSocketConfig
                     {LogLevel = LogSeverity.Debug, AlwaysDownloadUsers = false, MessageCacheSize = 200};
                 config.Token = context.Configuration["Token"];
-            }).UseCommandService((context, config) =>
+            }).UseCommandService((_,config) =>
             {
                 config.CaseSensitiveCommands = false;
                 config.LogLevel = LogSeverity.Debug;
                 config.DefaultRunMode = RunMode.Async;
-            }).UseInteractionService((context, config) => { config.LogLevel = LogSeverity.Debug; }
+            }).UseInteractionService((_, config) => { config.LogLevel = LogSeverity.Debug; }
             )
             .ConfigureServices((context, services) =>
             {
+                services.AddDbContextFactory<MetaculusContext>(x =>
+                    x.UseNpgsql(context.Configuration.GetConnectionString("Default")));
                 services.AddHostedService<CommandHandler>()
                     .AddSingleton<Data.Data>(); // injecting class Data into commandHandler
             })
@@ -57,9 +60,4 @@ public class Program
         }
     }
 
-    private Task Log(LogMessage msg)
-    {
-        Console.WriteLine(msg.ToString());
-        return null;
-    }
 }

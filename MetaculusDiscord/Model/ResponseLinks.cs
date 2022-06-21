@@ -1,9 +1,6 @@
 namespace MetaculusDiscord.Model;
 
-public interface IIdentifiable {
-    ulong Id { get; }
-}
-public class ResponseLinks : IIdentifiable
+public class ResponseLinks 
 {
     public ulong Id { get; set; }
     public string[] Links { get; } = new string[5];
