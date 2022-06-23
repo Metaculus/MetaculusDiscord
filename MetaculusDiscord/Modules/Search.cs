@@ -14,7 +14,7 @@ namespace MetaculusDiscord.Modules;
 
 public class Search
 {
-    public static async Task<string> CreateResponseText(string query, MetaculusSearchResponse? response)
+    public static string CreateResponseText(string query, MetaculusSearchResponse? response)
     {
         if (response is null)
             return $"No results for query: {query}";
@@ -49,7 +49,7 @@ public class Search
         {
             var query = string.Join(" ", searchStrings);
             var response = await SearchAsync(query);
-            var replyText = await CreateResponseText(query, response);
+            var replyText = CreateResponseText(query, response);
             var predictionReply = await Context.Channel.SendMessageAsync(replyText);
             if (response is null) return;
             if (response.Count > 1) EmotesUtils.Decorate(predictionReply, response.Count);
@@ -71,7 +71,7 @@ public class Search
             // there are only 3 seconds to respond, so first we have to
             await RespondAsync($"searching {query}...");
             var response = await SearchAsync(query);
-            var replyText = await CreateResponseText(query, response);
+            var replyText = CreateResponseText(query, response);
 
             var reply = await Context.Interaction.FollowupAsync(replyText);
             if (response is null) return;

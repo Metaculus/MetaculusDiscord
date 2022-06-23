@@ -54,8 +54,9 @@ public class AlertCommands : BotModuleBase
             await Context.Message.Author.SendMessageAsync($"Error: Channel alert can only be set on a server.");
             return;
         }
+
         var channelId = Context.Channel.Id;
-        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId =  question};
+        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId = question};
         if (await Data.TryRemoveChannelQuestionAlertAsync(alert))
             await Context.Channel.SendMessageAsync($"Channel alert for question {question} unset");
         else

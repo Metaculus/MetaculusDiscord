@@ -20,7 +20,7 @@ public class Program
     }
 
     /// <summary>
-    /// Start the bot using Discord.Net library 
+    /// Configures and hosts the bots services.
     /// </summary>
     private static async Task MainAsync()
     {
@@ -37,8 +37,8 @@ public class Program
             {
                 config.SocketConfig = new DiscordSocketConfig
                     {LogLevel = LogSeverity.Debug, AlwaysDownloadUsers = false, MessageCacheSize = 200};
-                config.Token = context.Configuration["Token"];
-            }).UseCommandService((_,config) =>
+                config.Token = context.Configuration["DiscordToken"];
+            }).UseCommandService((_, config) =>
             {
                 config.CaseSensitiveCommands = false;
                 config.LogLevel = LogSeverity.Debug;
@@ -49,7 +49,7 @@ public class Program
             {
                 services.AddDbContextFactory<MetaculusContext>(x =>
                     x.UseNpgsql(context.Configuration.GetConnectionString("Default")));
-                services.AddHostedService<CommandHandler>()
+                services.AddHostedService<InteractionHandler>()
                     .AddSingleton<Data.Data>(); // injecting class Data into commandHandler
                 services.AddHostedService<AlertService>()
                     .AddSingleton<Data.Data>(); // injecting class Data into alertService
@@ -61,5 +61,4 @@ public class Program
             await host.RunAsync();
         }
     }
-
 }

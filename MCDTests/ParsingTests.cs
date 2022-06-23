@@ -7,7 +7,7 @@ namespace MCDTests;
 public class ParsingTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
-    private HttpClient client = new HttpClient();
+    private HttpClient client = new();
 
     public ParsingTests(ITestOutputHelper testOutputHelper)
     {
@@ -17,7 +17,6 @@ public class ParsingTests
     [Fact]
     public async Task AlertQuestionParseTest()
     {
-        
         // numeric unresolved
         var response00 = client.GetStringAsync("https://www.metaculus.com/api2/questions/9450");
         // numeric resolved
@@ -32,16 +31,16 @@ public class ParsingTests
         var response20 = client.GetStringAsync("https://www.metaculus.com/api2/questions/5265");
         // binary resolved
         var response21 = client.GetStringAsync("https://www.metaculus.com/api2/questions/602");
-        
+
         // convert to dynamic json (can't use normal parsing because API is inconsistent)
         var response00Json = JsonConvert.DeserializeObject<dynamic>(await response00);
-        var response01Json = JsonConvert.DeserializeObject<dynamic>(await  response01);
+        var response01Json = JsonConvert.DeserializeObject<dynamic>(await response01);
         var response10Json = JsonConvert.DeserializeObject<dynamic>(await response10);
         var response11Json = JsonConvert.DeserializeObject<dynamic>(await response11);
         var response12Json = JsonConvert.DeserializeObject<dynamic>(await response12);
         var response20Json = JsonConvert.DeserializeObject<dynamic>(await response20);
         var response21Json = JsonConvert.DeserializeObject<dynamic>(await response21);
-        
+
         // parse as AlertQuestion
         // this should not throw an exception
         var response00AlertQuestion = new AlertQuestion(response00Json);

@@ -1,4 +1,5 @@
 namespace MetaculusDiscord.Model;
+
 /// <summary>
 /// Representation of a Metaculus question.
 /// </summary>
@@ -10,11 +11,12 @@ public class Question
         Binary,
         Date
     }
+
     public long Id { get; set; }
     public string Title { get; set; } = "";
     public QuestionType Type { get; set; }
-    
 }
+
 /// <summary>
 /// Question representation used for showing the user search results.
 /// </summary>
@@ -23,7 +25,7 @@ public class SearchResultQuestion : Question
     public string PageUrl { get; set; }
     public DateTime PublishTime { get; set; }
 
-    public SearchResultQuestion(dynamic dynamicQuestion) 
+    public SearchResultQuestion(dynamic dynamicQuestion)
     {
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
@@ -32,19 +34,22 @@ public class SearchResultQuestion : Question
         PageUrl = dynamicQuestion.page_url;
     }
 }
+
 /// <summary>
 /// Question representation used for sending alerts.
 /// </summary>
 public class AlertQuestion : Question
 {
-    public double Value { get; set; } 
+    public double Value { get; set; }
     public double DayOldValue { get; set; }
     public double SixHoursOldValue { get; set; }
     public DateTime? DateValue { get; set; }
+
     /// <summary>
     /// true if resolved, false if not resolved, null if resolved as ambiguous
     /// </summary>
     public bool? Resolved { get; set; }
+
     // the median value can be found at community_prediction.history.???.x1.q2
     /// <summary>
     /// 
@@ -56,7 +61,9 @@ public class AlertQuestion : Question
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
         string type = dynamicQuestion.possibilities.type;
-        string? format = dynamicQuestion.possibilities.format; // todo: test that this does not throw unrecoverable exception
+        string?
+            format = dynamicQuestion.possibilities
+                .format; // todo: test that this does not throw unrecoverable exception
 
         double? resolution = dynamicQuestion.resolution;
 
@@ -64,8 +71,12 @@ public class AlertQuestion : Question
         {
             Resolved = false;
             Value = dynamicQuestion.community_prediction.full.q2; // the current prediction
+            DayOldValue = dynamicQuestion.community_prediction.history.day.x1.q2;
         }
-        else if (Math.Abs((double) resolution - (-1)) < .000001) Resolved = null; 
+        else if (Math.Abs((double) resolution - -1) < .000001)
+        {
+            Resolved = null;
+        }
         else
         {
             Resolved = true;
@@ -78,7 +89,6 @@ public class AlertQuestion : Question
                 if (format == "date")
                 {
                     Type = QuestionType.Date;
-                    
                 }
                 else // format is numeric
                 {
@@ -86,16 +96,31 @@ public class AlertQuestion : Question
                     double min = dynamicQuestion.possibilities.scale.min;
                     double max = dynamicQuestion.possibilities.scale.max;
                 }
+
                 break;
             case "binary":
                 Type = QuestionType.Binary;
                 break;
             default:
                 throw new Exception("Unknown question type");
-
         }
-        // todo populate properties with values to be used in printing
 
+        // todo populate properties with values to be used in printing
+        SixHoursOldValue = SelectPredictionWithClosestTime(dynamicQuestion, DateTime.Now.AddHours(-6));
+        DayOldValue =
+            SelectPredictionWithClosestTime(dynamicQuestion.community_prediction.history, DateTime.Now.AddDays(-1));
+        //todo finish this class
+    }
+
+    // binary search is premature optimization in this case
+    private double SelectPredictionWithClosestTime(dynamic history, DateTime time)
+    {
+        for (int i = history.Count - 1; i >= 0; i--)
+            if (history[i].t < time)
+                // return the median
+                return history[i].x1.q2;
+
+        return 0;
     }
 
     // recover date from 0-1 value
@@ -103,24 +128,25 @@ public class AlertQuestion : Question
     {
         if (Math.Abs(derivRatio - 1) < 0.000001)
             return start + (end - start) * prediction;
-        
-        return start + (end - start) * (Math.Pow(derivRatio , prediction) - 1) / (derivRatio - 1);
-    } 
+
+        return start + (end - start) * (Math.Pow(derivRatio, prediction) - 1) / (derivRatio - 1);
+    }
+
     // recover number from 0-1 value
     private static double ScaleNum(double start, double end, double prediction, double derivRatio)
     {
         if (Math.Abs(derivRatio - 1) < 0.000001)
             return start + (end - start) * prediction;
-        
-        return start + (end - start) * (Math.Pow(derivRatio , prediction) - 1) / (derivRatio - 1);
+
+        return start + (end - start) * (Math.Pow(derivRatio, prediction) - 1) / (derivRatio - 1);
     }
 
-    public bool IsSmallSwing()
+    public bool Is6HourSwing()
     {
         throw new NotImplementedException();
     }
 
-    public bool IsBigSwing()
+    public bool IsDaySwing()
     {
         throw new NotImplementedException();
     }

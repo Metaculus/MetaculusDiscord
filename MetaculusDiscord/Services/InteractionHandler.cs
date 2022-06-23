@@ -17,7 +17,7 @@ using Newtonsoft.Json;
 
 namespace MetaculusDiscord.Services;
 
-public class CommandHandler : DiscordClientService
+public class InteractionHandler : DiscordClientService
 {
     private readonly DiscordSocketClient _client;
     private readonly ILogger<DiscordClientService> _logger;
@@ -27,7 +27,7 @@ public class CommandHandler : DiscordClientService
     private readonly IConfiguration _configuration;
     private readonly Data.Data _data;
 
-    public CommandHandler(IServiceProvider provider, DiscordSocketClient client, CommandService service,
+    public InteractionHandler(IServiceProvider provider, DiscordSocketClient client, CommandService service,
         InteractionService interactionService, IConfiguration configuration, ILogger<DiscordClientService> logger,
         Data.Data data)
         : base(client, logger)
