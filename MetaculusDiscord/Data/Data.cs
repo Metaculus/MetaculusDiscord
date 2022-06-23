@@ -9,9 +9,9 @@ public class Data
 
     // using separate dbcontext for each query
     private readonly IDbContextFactory<MetaculusContext> _contextFactory;
-    public bool TryAddUserQuestionAlert(UserQuestionAlert alert)
+    public async Task<bool> TryAddUserQuestionAlertAsync(UserQuestionAlert alert)
     {
-        using var db = _contextFactory.CreateDbContext();
+        await using var db = await _contextFactory.CreateDbContextAsync();
         if (db.UserQuestionAlerts.Any(a => a.UserId == alert.UserId && a.QuestionId == alert.QuestionId))
         {
             return false;
@@ -19,54 +19,54 @@ public class Data
         else
         {
             db.UserQuestionAlerts.Add(alert);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
             return true;
         }
     }
 
-    public bool TryAddChannelQuestionAlert(ChannelQuestionAlert alert)
+    public async Task<bool> TryAddChannelQuestionAlertAsync(ChannelQuestionAlert alert)
     {
-        using var db = _contextFactory.CreateDbContext();
+        await using var db = await _contextFactory.CreateDbContextAsync();
         if (db.ChannelQuestionAlerts.Any(a => a.ChannelId == alert.ChannelId && a.QuestionId == alert.QuestionId))
             return false;
         db.ChannelQuestionAlerts.Add(alert);
-        db.SaveChanges();
+        await db.SaveChangesAsync();
         return true;
     }
 
-    public bool TryRemoveUserQuestionAlert(UserQuestionAlert alert)
+    public async Task<bool> TryRemoveUserQuestionAlertAsync(UserQuestionAlert alert)
     {
-        using var db = _contextFactory.CreateDbContext();
+        await using var db = await _contextFactory.CreateDbContextAsync();
         UserQuestionAlert? dbAlert = db.UserQuestionAlerts.FirstOrDefault(a => a.UserId == alert.UserId && a.QuestionId == alert.QuestionId);
         if (dbAlert is null) return false;
         
         db.UserQuestionAlerts.Remove(dbAlert);
-        db.SaveChanges();
+        await db.SaveChangesAsync();
         return true;
 
     }
 
-    public bool TryRemoveChannelQuestionAlert(ChannelQuestionAlert alert)
+    public async Task<bool> TryRemoveChannelQuestionAlertAsync(ChannelQuestionAlert alert)
     {
-        using var db = _contextFactory.CreateDbContext();
+        await using var db = await _contextFactory.CreateDbContextAsync();
         ChannelQuestionAlert? dbAlert = db.ChannelQuestionAlerts.FirstOrDefault(a => a.ChannelId == alert.ChannelId && a.QuestionId == alert.QuestionId);
         if (dbAlert is null) return false;
         
         db.ChannelQuestionAlerts.Remove(dbAlert);
-        db.SaveChanges();
+        await db.SaveChangesAsync();
         return true;
 
     }
 
-    public IEnumerable<UserQuestionAlert> AllUserQuestionAlerts()
+    public async Task<IEnumerable<UserQuestionAlert>> GetAllUserQuestionAlertsAsync()
     {
-        using var context = _contextFactory.CreateDbContext();
+        await using var context = await _contextFactory.CreateDbContextAsync();
         return context.UserQuestionAlerts.ToList();
     }
 
-    public IEnumerable<ChannelQuestionAlert> AllChannelQuestionAlerts()
+    public async Task<IEnumerable<ChannelQuestionAlert>> GetAllChannelQuestionAlerts()
     {
-        using var context = _contextFactory.CreateDbContext();
+        await using var context = await _contextFactory.CreateDbContextAsync();
         return context.ChannelQuestionAlerts.ToList();
     }
 

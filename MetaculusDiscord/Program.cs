@@ -20,7 +20,7 @@ public class Program
     }
 
     /// <summary>
-    /// Start the bot using Discord.Net library
+    /// Start the bot using Discord.Net library 
     /// </summary>
     private static async Task MainAsync()
     {
@@ -51,6 +51,8 @@ public class Program
                     x.UseNpgsql(context.Configuration.GetConnectionString("Default")));
                 services.AddHostedService<CommandHandler>()
                     .AddSingleton<Data.Data>(); // injecting class Data into commandHandler
+                services.AddHostedService<AlertService>()
+                    .AddSingleton<Data.Data>(); // injecting class Data into alertService
             })
             .UseConsoleLifetime();
         var host = builder.Build();

@@ -10,8 +10,8 @@ public class AlertCommands : BotModuleBase
     public async Task SetUserAlert(int question)
     {
         var userId = Context.Message.Author.Id;
-        var alert = new UserQuestionAlert() {UserId = userId, QuestionId = (ulong) question};
-        if (Data.TryAddUserQuestionAlert(alert))
+        var alert = new UserQuestionAlert() {UserId = userId, QuestionId = question};
+        if (await Data.TryAddUserQuestionAlertAsync(alert))
             await Context.Message.Author.SendMessageAsync($"Alert for question {question} set");
         else
             await Context.Message.Author.SendMessageAsync($"Error: Alert for question {question} already set");
@@ -28,8 +28,8 @@ public class AlertCommands : BotModuleBase
 
         var channelId = Context.Channel.Id;
 
-        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId = (ulong) question};
-        if (Data.TryAddChannelQuestionAlert(alert))
+        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId = question};
+        if (await Data.TryAddChannelQuestionAlertAsync(alert))
             await Context.Channel.SendMessageAsync($"Alert for question {question} set");
         else
             await Context.Channel.SendMessageAsync($"Error: Alert for question {question} already set");
@@ -39,8 +39,8 @@ public class AlertCommands : BotModuleBase
     public async Task UnsetUserAlert(int question)
     {
         var userId = Context.Message.Author.Id;
-        var alert = new UserQuestionAlert() {UserId = userId, QuestionId = (ulong) question};
-        if (Data.TryRemoveUserQuestionAlert(alert))
+        var alert = new UserQuestionAlert() {UserId = userId, QuestionId = question};
+        if (await Data.TryRemoveUserQuestionAlertAsync(alert))
             await Context.Message.Author.SendMessageAsync($"Alert for question {question} unset");
         else
             await Context.Message.Author.SendMessageAsync($"Error: No alert for question {question} set");
@@ -55,8 +55,8 @@ public class AlertCommands : BotModuleBase
             return;
         }
         var channelId = Context.Channel.Id;
-        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId = (ulong) question};
-        if (Data.TryRemoveChannelQuestionAlert(alert))
+        var alert = new ChannelQuestionAlert() {ChannelId = channelId, QuestionId =  question};
+        if (await Data.TryRemoveChannelQuestionAlertAsync(alert))
             await Context.Channel.SendMessageAsync($"Channel alert for question {question} unset");
         else
             await Context.Message.Channel.SendMessageAsync($"Error: No channel alert for question {question} set");

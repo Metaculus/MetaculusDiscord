@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaculusDiscord", "MetaculusDiscord\MetaculusDiscord.csproj", "{0269D246-8EF5-442D-B4EE-A3AFF9459051}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCDTests", "MCDTests\MCDTests.csproj", "{AA65079C-D6BC-4CB3-B470-485FBA3AB118}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{0269D246-8EF5-442D-B4EE-A3AFF9459051}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0269D246-8EF5-442D-B4EE-A3AFF9459051}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0269D246-8EF5-442D-B4EE-A3AFF9459051}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA65079C-D6BC-4CB3-B470-485FBA3AB118}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA65079C-D6BC-4CB3-B470-485FBA3AB118}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA65079C-D6BC-4CB3-B470-485FBA3AB118}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA65079C-D6BC-4CB3-B470-485FBA3AB118}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
