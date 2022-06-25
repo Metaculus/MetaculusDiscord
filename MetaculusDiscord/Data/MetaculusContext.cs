@@ -1,15 +1,17 @@
-using Microsoft.EntityFrameworkCore;
 using MetaculusDiscord.Model;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace MetaculusDiscord.Data;
 
 /// <summary>
-/// Contains DbSets for objects that are stored in the database.
+///     Contains DbSets for objects that are stored in the database.
 /// </summary>
 public class MetaculusContext : DbContext
 {
+#pragma warning disable CS8618
     public MetaculusContext(DbContextOptions<MetaculusContext> options) : base(options)
+#pragma warning restore CS8618
     {
     }
 

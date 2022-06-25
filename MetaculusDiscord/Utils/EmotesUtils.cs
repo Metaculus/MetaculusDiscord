@@ -1,5 +1,4 @@
 using Discord;
-using Discord.Rest;
 
 namespace MetaculusDiscord.Utils;
 
@@ -25,5 +24,12 @@ public static class EmotesUtils
         if (count > EmojiDict.Count)
             throw new ArgumentException("You can't decorate message with more emotes than available");
         await message.AddReactionsAsync(EmojiDict.Values.Take(count));
+    }
+
+    public static string SignEmote(double num)
+    {
+        if (num > 0)
+            return "⬆️";
+        return "⬇️";
     }
 }

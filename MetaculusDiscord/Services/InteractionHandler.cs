@@ -1,16 +1,12 @@
-using System.Collections;
-using System.Dynamic;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Threading.Channels;
 using Discord;
 using Discord.Addons.Hosting;
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
-using Discord.Rest;
 using Discord.WebSocket;
 using MetaculusDiscord.Modules;
+using MetaculusDiscord.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -20,12 +16,12 @@ namespace MetaculusDiscord.Services;
 public class InteractionHandler : DiscordClientService
 {
     private readonly DiscordSocketClient _client;
+    private readonly IConfiguration _configuration;
+    private readonly Data.Data _data;
+    private readonly InteractionService _interactionService;
     private readonly ILogger<DiscordClientService> _logger;
     private readonly IServiceProvider _provider;
     private readonly CommandService _service;
-    private readonly InteractionService _interactionService;
-    private readonly IConfiguration _configuration;
-    private readonly Data.Data _data;
 
     public InteractionHandler(IServiceProvider provider, DiscordSocketClient client, CommandService service,
         InteractionService interactionService, IConfiguration configuration, ILogger<DiscordClientService> logger,
@@ -98,7 +94,7 @@ public class InteractionHandler : DiscordClientService
         // we want to handle only messages that are a singular metaculus link
         // await channel.SendMessageAsync(reaction.Emote.Name);
         var selected = -1;
-        foreach (var (i, e) in Utils.EmotesUtils.GetEmojiNumbersDict())
+        foreach (var (i, e) in EmotesUtils.GetEmojiNumbersDict())
             if (e.Name.Equals(reaction.Emote.Name))
                 selected = i;
         if (selected == -1) return;
@@ -108,7 +104,7 @@ public class InteractionHandler : DiscordClientService
     }
 
     /// <summary>
-    /// The bot listens for messages and when it finds a message with its prefix, it tries to execute the command. 
+    ///     The bot listens for messages and when it finds a message with its prefix, it tries to execute the command.
     /// </summary>
     /// <param name="socketMessage">Message that caused the event.</param>
     private async Task OnMessage(SocketMessage socketMessage)
@@ -126,8 +122,8 @@ public class InteractionHandler : DiscordClientService
 
 
     /// <summary>
-    /// Used only once,I already ran it for this bot,
-    /// in case something changes add it as a handler for _client.Ready event
+    ///     Used only once,I already ran it for this bot,
+    ///     in case something changes add it as a handler for _client.Ready event
     /// </summary>
     private async Task MakeCommand()
     {

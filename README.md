@@ -1,17 +1,18 @@
 # Metaculus Discord Bot
 - unofficial Discord bot for Metaculus
-- in development!
+- in development, not releaseded yet!
 
 
 ## Features
 - [x] searching the API and displaying questions in embeds
-- [] DM alerts for questions
-- [] channel alerts for questions
+- [ ] DM alerts for questions
+- [ ] channel alerts for questions
 - ???
 
 ## User documentation
 You can add the bot to your server with this [invite link]("https://not released yet")
 
+### Low level commands
 When the bot is running it is listening for *commands* prefixed by `!mc`, though this is not the intended usage.
 
 - `!mc help`: displays this help message
@@ -25,8 +26,16 @@ The bot's message is decorated with reaction emojis 1-5 when clicked by users wi
 - `!mc unalert <question_id>` removes the alert for the question
  
 - `!mc channelalert <question_id>` sets a resolution and swing alert for the question sent to the current channel
+
+### higher level controls
  
 The `/metaculus` command is equivalent to `search`.
+
+[//]: # (Adding a :warning: ⚠️ react to a message containing a question link will set a user alert for it.)
+
+[//]: # (Adding a :rotating_light: 🚨 react to a message containing a question link will set a channel alert for it.)
+
+[//]: # (Removing the react removes the alert.)
 
 
 

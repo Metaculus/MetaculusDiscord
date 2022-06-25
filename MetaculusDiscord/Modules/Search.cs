@@ -1,11 +1,6 @@
-using System.Net;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Channels;
-using Discord;
 using Discord.Commands;
 using Discord.Interactions;
-using Discord.WebSocket;
 using MetaculusDiscord.Model;
 using MetaculusDiscord.Utils;
 using Newtonsoft.Json;
@@ -14,6 +9,8 @@ namespace MetaculusDiscord.Modules;
 
 public class Search
 {
+    private static readonly HttpClient HttpClient = new();
+
     public static string CreateResponseText(string query, MetaculusSearchResponse? response)
     {
         if (response is null)
@@ -37,59 +34,7 @@ public class Search
 
         return replyBuilder.ToString();
     }
-
-    public class SearchCommands : BotModuleBase
-    {
-        private const int QueryResults = 5;
-
-
-        [Command("search")]
-        [Alias("s")]
-        public async Task SearchCommand(params string[] searchStrings)
-        {
-            var query = string.Join(" ", searchStrings);
-            var response = await SearchAsync(query);
-            var replyText = CreateResponseText(query, response);
-            var predictionReply = await Context.Channel.SendMessageAsync(replyText);
-            if (response is null) return;
-            if (response.Count > 1) EmotesUtils.Decorate(predictionReply, response.Count);
-            var messageLinks = new ResponseLinks(predictionReply.Id, response.Questions.Select(q => q.PageUrl));
-            Data.TryAddResponse(messageLinks);
-        }
-
-        public SearchCommands(Data.Data data) : base(data)
-        {
-        }
-    }
-
-
-    public class SearchSlash : BotInteractionModuleBase
-    {
-        [SlashCommand("metaculus", "")]
-        public async Task SearchCommand(string query)
-        {
-            // there are only 3 seconds to respond, so first we have to
-            await RespondAsync($"searching {query}...");
-            var response = await SearchAsync(query);
-            var replyText = CreateResponseText(query, response);
-
-            var reply = await Context.Interaction.FollowupAsync(replyText);
-            if (response is null) return;
-            if (response.Count > 1) EmotesUtils.Decorate(reply, response.Count);
-            var messageLinks = new ResponseLinks(reply.Id, response.Questions.Select(q => q.PageUrl));
-            Data.TryAddResponse(messageLinks);
-            if (response.Count > 1)
-                EmotesUtils.Decorate(reply, response.Count);
-        }
-
-
-        public SearchSlash(Data.Data data) : base(data)
-        {
-        }
-    }
-
-    private static readonly HttpClient HttpClient = new();
-
+ //todo recactor this
     public static Task<string?> GetStringResponseAsync(string url)
     {
         try
@@ -132,5 +77,54 @@ public class Search
         if (response.Count == 0) return null;
 
         return response;
+    }
+
+    public class SearchCommands : BotModuleBase
+    {
+        private const int QueryResults = 5;
+
+        public SearchCommands(Data.Data data) : base(data)
+        {
+        }
+
+
+        [Command("search")]
+        [Alias("s")]
+        public async Task SearchCommand(params string[] searchStrings)
+        {
+            var query = string.Join(" ", searchStrings);
+            var response = await SearchAsync(query);
+            var replyText = CreateResponseText(query, response);
+            var predictionReply = await Context.Channel.SendMessageAsync(replyText);
+            if (response is null) return;
+            if (response.Count > 1) EmotesUtils.Decorate(predictionReply, response.Count);
+            var messageLinks = new ResponseLinks(predictionReply.Id, response.Questions.Select(q => q.PageUrl));
+            Data.TryAddResponse(messageLinks);
+        }
+    }
+
+
+    public class SearchSlash : BotInteractionModuleBase
+    {
+        public SearchSlash(Data.Data data) : base(data)
+        {
+        }
+
+        [SlashCommand("metaculus", "")]
+        public async Task SearchCommand(string query)
+        {
+            // there are only 3 seconds to respond, so first we have to
+            await RespondAsync($"searching {query}...");
+            var response = await SearchAsync(query);
+            var replyText = CreateResponseText(query, response);
+
+            var reply = await Context.Interaction.FollowupAsync(replyText);
+            if (response is null) return;
+            if (response.Count > 1) EmotesUtils.Decorate(reply, response.Count);
+            var messageLinks = new ResponseLinks(reply.Id, response.Questions.Select(q => q.PageUrl));
+            Data.TryAddResponse(messageLinks);
+            if (response.Count > 1)
+                EmotesUtils.Decorate(reply, response.Count);
+        }
     }
 }

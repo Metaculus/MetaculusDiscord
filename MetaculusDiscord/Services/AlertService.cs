@@ -3,156 +3,197 @@ using Discord;
 using Discord.Addons.Hosting;
 using Discord.WebSocket;
 using MetaculusDiscord.Model;
+using MetaculusDiscord.Utils;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Timer = System.Timers.Timer;
 
 namespace MetaculusDiscord.Services;
 
 public class AlertService : DiscordClientService
 {
-    private Data.Data _data;
-    private HttpClient _httpClient = new();
+    private readonly Data.Data _data;
+    private readonly IConfiguration _configuration;
+    private Timer? _timer;
 
-    public AlertService(DiscordSocketClient client, ILogger<DiscordClientService> logger, Data.Data data) : base(client,
+    public AlertService(DiscordSocketClient client, ILogger<DiscordClientService> logger, Data.Data data,
+        IConfiguration configuration) : base(client,
         logger)
     {
         _data = data;
+        _configuration = configuration;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    ///     Initializes the timer.
+    /// </summary>
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // 6 hours
-        // var timer = new System.Timers.Timer(6 * 60 * 60 * 1000);
+# if DEBUG
         // 30 seconds 
-        var timer = new System.Timers.Timer(30 * 1000);
-        timer.Elapsed += ProcessUpdates;
-        timer.Start();
+        _timer = new Timer(30 * 1000);
+# else
+        // 6 hours
+        var timer = new System.Timers.Timer(6 * 60 * 60 * 1000);
+#endif
+        _timer.Elapsed += AlertAll;
+        _timer.Enabled = true;
+        _timer.AutoReset = true;
+        _timer.Start();
+        return Task.CompletedTask;
     }
 
-    private void ProcessUpdates(object? sender, ElapsedEventArgs e)
+    /// <summary>
+    ///     Called every time the timer elapses. Sends alerts to all users and channels.
+    /// </summary>
+    private void AlertAll(object? sender, ElapsedEventArgs e)
     {
-        UserAlerts();
-        //todo  ChannelAlerts();
+        Task.Run(Alert<UserQuestionAlert>);
+        Task.Run(Alert<ChannelQuestionAlert>);
     }
 
-    // todo consider conditional compilation for debugging
-    // todo refactor for DRY and reusability for all alerts
-    private async void UserAlerts()
+    /// <summary>
+    ///     Fetches all the alerts from the database and sends those that get triggered to the appropriate channels.
+    /// </summary>
+    /// <typeparam name="T">QuestionAlert type that has a table in the database</typeparam>
+    private async Task Alert<T>() where T : QuestionAlert
     {
         // load all personal  alerts to memory 
-        var allUserAlerts = await _data.GetAllUserQuestionAlertsAsync();
+        var allUserAlerts = await _data.GetAllAlertsAsync<T>();
         // download and parse all questions from the api
-        var userAlertsWithQuestions = JoinWithQuestions(allUserAlerts);
+        var alertsAndQuestions = JoinWithQuestions(allUserAlerts.ToList());
         // filter for those that have resolved -> send message -> remove from db
-        List<Tuple<UserQuestionAlert, AlertQuestion>> resolved = new();
-        List<Tuple<UserQuestionAlert, AlertQuestion>> ambiguous = new();
-        List<Tuple<UserQuestionAlert, AlertQuestion>> smallSwing = new();
-        List<Tuple<UserQuestionAlert, AlertQuestion>> bigSwing = new();
+        List<Tuple<T, AlertQuestion>> resolved = new();
+        List<Tuple<T, AlertQuestion>> ambiguous = new();
+        List<Tuple<T, AlertQuestion>> sixHourSwing = new();
+        List<Tuple<T, AlertQuestion>> daySwing = new();
         // split 
-        foreach (var item in userAlertsWithQuestions)
+        var daySwingThreshold = _configuration.GetValue<double>("DaySwingThreshold");
+        var sixHourSwingThreshold = _configuration.GetValue<double>("SixHourSwingThreshold");
+        foreach (var alertAndQuestion in alertsAndQuestions)
         {
-            var (alert, question) = item;
+            var question = alertAndQuestion.Item2;
             if (question.Resolved is null)
             {
-                // send that it's ambiguous 
-                ambiguous.Add(item);
+                ambiguous.Add(alertAndQuestion);
             }
             else if (question.Resolved.Value)
             {
-                resolved.Add(item);
+                resolved.Add(alertAndQuestion);
             }
             else
             {
-                if (question.Is6HourSwing())
-                    smallSwing.Add(item);
-                else if (question.IsDaySwing()) bigSwing.Add(item);
+                if (question.Is6HourSwing(sixHourSwingThreshold))
+                    sixHourSwing.Add(alertAndQuestion);
+                else if (question.IsDaySwing(daySwingThreshold))
+                    daySwing.Add(alertAndQuestion);
             }
         }
 
         // send messages
-        resolved.ForEach(async item => await SendResolvedMessageAsync(item));
-        // Parallel.ForEach(resolved, SendResolvedMessageAsync);
-        // Parallel.ForEach(ambiguous, SendAmbiguousMessageAsync);
-        // Parallel.ForEach(smallSwing, SendSmallSwingMessageAsync);
-        // Parallel.ForEach(bigSwing, SendBigSwingMessageAsync);
+        resolved.ForEach(t => Task.Run(() => SendResolvedMessageAsync(t)));
+        ambiguous.ForEach(t => Task.Run(() => SendAmbiguousMessageAsync(t)));
+        sixHourSwing.ForEach(t => Task.Run(() => SendSixHourSwingMessageAsync(t)));
+        daySwing.ForEach(t => Task.Run(() => SendDaySwingMessageAsync(t)));
 
-        // update db //todo DRY!!!
-        Parallel.ForEach(resolved, async (tup, _) =>
+
+        // update db
+        var resolveDeletion = Task.Run(async () =>
         {
-            var (alert, question) = tup;
-            await _data.TryRemoveUserQuestionAlertAsync(alert);
+            foreach (var item in resolved)
+            {
+                var (alert, _) = item;
+                await _data.TryRemoveAlertAsync(alert);
+            }
         });
-        Parallel.ForEach(ambiguous, async (tup, _) =>
-        {
-            var (alert, question) = tup;
-            await _data.TryRemoveUserQuestionAlertAsync(alert);
-        });
+        await _data.RemoveAlerts(resolved.Select(t => t.Item1));
+        await _data.RemoveAlerts(ambiguous.Select(t => t.Item1));
     }
 
-    private async Task SendResolvedMessageAsync(Tuple<UserQuestionAlert, AlertQuestion> tup)
-    {
-        var (alert, question) = tup;
-        var target = await Client.GetUserAsync(alert.UserId);
-        var message = $"{question.Title} has been resolved. The answer is {question}"; //todo make text
-        await target.SendMessageAsync(message);
-    }
-
-    private async Task SendAmbiguousMessageAsync(Tuple<UserQuestionAlert, AlertQuestion> tup)
-    {
-        var (alert, question) = tup;
-        var target = await Client.GetUserAsync(alert.UserId);
-        var message = $"{question.Title} has been resolved. The answer is {question}"; //todo make text
-        await target.SendMessageAsync(message);
-    }
-
-    private async Task SendSmallSwingMessageAsync(Tuple<UserQuestionAlert, AlertQuestion> tup)
-    {
-        var (alert, question) = tup;
-        var target = await Client.GetUserAsync(alert.UserId);
-        var message = $"{question.Title} has been resolved. The answer is {question}"; //todo make text
-        await target.SendMessageAsync(message);
-    }
-
-    private async Task SendBigSwingMessageAsync(Tuple<UserQuestionAlert, AlertQuestion> tup)
-    {
-        var (alert, question) = tup;
-        var target = await Client.GetUserAsync(alert.UserId);
-        var message = $"{question.Title} has been resolved. The answer is {question}"; //todo make text
-        await target.SendMessageAsync(message);
-        throw new NotImplementedException();
-    }
-
-// todo this is sus and not DRY
     /// <summary>
-    /// Downloads questions in parallel from the api and joins them with the alerts.
+    ///     Sends a message either to channel or DM depending on the alert type.
     /// </summary>
-    /// <param name="userAlerts">User Alerts</param>
-    /// <returns>IEnumerable of pairs of Alerts and Questions </returns>
-    private IEnumerable<Tuple<UserQuestionAlert, AlertQuestion>> JoinWithQuestions(
-        IEnumerable<UserQuestionAlert> userAlerts)
+    /// <param name="message">Message to be sent</param>
+    /// <param name="alert">Alert whose target is sent the message.</param>
+    /// <typeparam name="TAlert">QuestionAlert</typeparam>
+    private async Task SendAlertMessageAsync<TAlert>(string message, TAlert alert) where TAlert : QuestionAlert
     {
-        var userQuestionAlerts = userAlerts.ToList();
-        var allQuestionIds = userQuestionAlerts.AsParallel().Select(x => x.QuestionId).Distinct();
-        var questions = allQuestionIds.Select(GetQuestionFromIdAsync).Where(y => y.Result != null).ToArray();
+        if (alert is UserQuestionAlert userAlert)
+        {
+            var target = await Client.GetUserAsync(userAlert.UserId);
+            await target.SendMessageAsync(message);
+        }
+        else if (alert is ChannelQuestionAlert channelAlert)
+        {
+            if (await Client.GetChannelAsync(channelAlert.ChannelId) is ITextChannel target)
+                await target.SendMessageAsync(message);
+        }
+    }
+
+    /// <summary>
+    ///     Create a message for a resolved alert and send it.
+    /// </summary>
+    private async Task SendResolvedMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    {
+        var (alert, question) = t;
+        var message =
+            $"Question {question.Id}: {question.Title} has been resolved.\n The answer is **{question.ValueString()}** \n" +
+            question.ShortUrl();
+        await SendAlertMessageAsync(message, alert);
+    }
+
+    /// <summary>
+    ///     Create a message for an ambiguously resolved alert and send it.
+    /// </summary>
+    private async Task SendAmbiguousMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    {
+        var (alert, question) = t;
+        var message = $"Question {question.Id}: {question.Title} has been resolved as **ambiguous** \n" +
+                      question.ShortUrl();
+        await SendAlertMessageAsync(message, alert);
+    }
+
+    /// <summary>
+    ///     Create message for an alert which has shifted significantly in the last 6 hours and send it.
+    /// </summary>
+    private async Task SendSixHourSwingMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    {
+        var (alert, question) = t;
+        var message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past 6 hours! \n" +
+                      $"{question.SixHoursOldValueString()} {EmotesUtils.SignEmote(question.SixHourSwing())}  **{question.ValueString()}**\n" +
+                      question.ShortUrl();
+        await SendAlertMessageAsync(message, alert);
+    }
+
+    /// <summary>
+    ///     Create message for an alert which has shifted significantly in the last day and send it.
+    /// </summary>
+    private async Task SendDaySwingMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    {
+        var (alert, question) = t;
+        var message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past day! \n" +
+                      $"{question.DayOldValueString()} {EmotesUtils.SignEmote(question.DaySwing())}  **{question.ValueString()}**\n" +
+                      question.ShortUrl();
+        await SendAlertMessageAsync(message, alert);
+    }
+
+
+    /// <summary>
+    ///     Downloads questions in parallel from the api and inner joins them with the alerts.
+    /// </summary>
+    /// <param name="alerts">User Alerts</param>
+    /// <returns>IEnumerable of pairs of Alerts and Questions </returns>
+    private IEnumerable<Tuple<T, AlertQuestion>> JoinWithQuestions<T>(
+        List<T> alerts) where T : QuestionAlert
+    {
+        // get the AlertQuestions in any order
+        var allQuestionIds = alerts.AsParallel().Select(x => x.QuestionId).Distinct();
+        var questions = allQuestionIds.Select(ApiUtils.GetAlertQuestionFromIdAsync).Where(y => y.Result != null)
+            .ToArray();
         Task.WaitAll(questions);
         var filtered = questions.Where(y => y.Result != null);
-        return userQuestionAlerts.Join(filtered, x => x.QuestionId, y => y.Result!.Id,
-            (x, y) => new Tuple<UserQuestionAlert, AlertQuestion>(x, y.Result!));
-    }
-    // todo where does this belong?
-    private static async Task<AlertQuestion?> GetQuestionFromIdAsync(long id)
-    {
-        try
-        {
-            using var client = new HttpClient();
-            var response = await client.GetStringAsync($"https://www.metaculus.com/api2/questions/{id}");
-            // deserialize to dynamic
-            var dynamicQuestion = JsonConvert.DeserializeObject<dynamic?>(response);
-            return new AlertQuestion(dynamicQuestion);
-        }
-        catch (Exception e)
-        {
-            return null;
-        }
+        // inner join
+        return alerts.Join(filtered, x => x.QuestionId, y => y.Result!.Id,
+            (x, y) => new Tuple<T, AlertQuestion>(x, y.Result!));
     }
 }

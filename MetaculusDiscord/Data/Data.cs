@@ -5,71 +5,91 @@ namespace MetaculusDiscord.Data;
 
 public class Data
 {
-    private readonly Dictionary<ulong, ResponseLinks> _responses;
-
     // using separate dbcontext for each query
     private readonly IDbContextFactory<MetaculusContext> _contextFactory;
+    private readonly Dictionary<ulong, ResponseLinks> _responses;
 
-    public async Task<bool> TryAddUserQuestionAlertAsync(UserQuestionAlert alert)
+
+    public Data()
+    {
+        _responses = new Dictionary<ulong, ResponseLinks>();
+        _contextFactory = new MetaculusContext.MetaculusContextFactory();
+    }
+
+    public async Task<bool> TryAddAlertAsync<TAlert>(TAlert alert) where TAlert : QuestionAlert
     {
         await using var db = await _contextFactory.CreateDbContextAsync();
-        if (db.UserQuestionAlerts.Any(a => a.UserId == alert.UserId && a.QuestionId == alert.QuestionId))
+        if (alert is UserQuestionAlert userAlert)
         {
-            return false;
+            if (db.UserQuestionAlerts.Any(a => a.UserId == userAlert.UserId && a.QuestionId == userAlert.QuestionId))
+                return false;
+            db.UserQuestionAlerts.Add(userAlert);
+        }
+        else if (alert is ChannelQuestionAlert channelAlert)
+        {
+            if (db.ChannelQuestionAlerts.Any(a =>
+                    a.ChannelId == channelAlert.ChannelId && a.QuestionId == alert.QuestionId))
+                return false;
+            db.ChannelQuestionAlerts.Add(channelAlert);
         }
         else
         {
-            db.UserQuestionAlerts.Add(alert);
-            await db.SaveChangesAsync();
-            return true;
-        }
-    }
-
-    public async Task<bool> TryAddChannelQuestionAlertAsync(ChannelQuestionAlert alert)
-    {
-        await using var db = await _contextFactory.CreateDbContextAsync();
-        if (db.ChannelQuestionAlerts.Any(a => a.ChannelId == alert.ChannelId && a.QuestionId == alert.QuestionId))
             return false;
-        db.ChannelQuestionAlerts.Add(alert);
+        }
+
         await db.SaveChangesAsync();
         return true;
     }
 
-    public async Task<bool> TryRemoveUserQuestionAlertAsync(UserQuestionAlert alert)
+    // generic version:
+    public async Task<bool> TryRemoveAlertAsync<TAlert>(TAlert alert) where TAlert : QuestionAlert
     {
         await using var db = await _contextFactory.CreateDbContextAsync();
-        var dbAlert =
-            db.UserQuestionAlerts.FirstOrDefault(a => a.UserId == alert.UserId && a.QuestionId == alert.QuestionId);
-        if (dbAlert is null) return false;
+        if (alert is UserQuestionAlert userQuestionAlert)
+        {
+            var dbAlert =
+                db.UserQuestionAlerts.FirstOrDefault(a =>
+                    a.UserId == userQuestionAlert.UserId && a.QuestionId == userQuestionAlert.QuestionId);
+            if (dbAlert is null) return false;
 
-        db.UserQuestionAlerts.Remove(dbAlert);
+            db.UserQuestionAlerts.Remove(dbAlert);
+        }
+        else if (alert is ChannelQuestionAlert channelQuestionAlert)
+        {
+            var dbAlert =
+                db.ChannelQuestionAlerts.FirstOrDefault(a =>
+                    a.ChannelId == channelQuestionAlert.ChannelId && a.QuestionId == alert.QuestionId);
+            if (dbAlert is null) return false;
+
+            db.ChannelQuestionAlerts.Remove(dbAlert);
+        }
+        else
+        {
+            return false;
+        }
+
         await db.SaveChangesAsync();
         return true;
     }
 
-    public async Task<bool> TryRemoveChannelQuestionAlertAsync(ChannelQuestionAlert alert)
-    {
-        await using var db = await _contextFactory.CreateDbContextAsync();
-        var dbAlert =
-            db.ChannelQuestionAlerts.FirstOrDefault(a =>
-                a.ChannelId == alert.ChannelId && a.QuestionId == alert.QuestionId);
-        if (dbAlert is null) return false;
-
-        db.ChannelQuestionAlerts.Remove(dbAlert);
-        await db.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<IEnumerable<UserQuestionAlert>> GetAllUserQuestionAlertsAsync()
+    public async Task<IEnumerable<TAlert>> GetAllAlertsAsync<TAlert>() where TAlert : QuestionAlert
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        return context.UserQuestionAlerts.ToList();
+        if (typeof(TAlert) == typeof(UserQuestionAlert))
+            return (IEnumerable<TAlert>) context.UserQuestionAlerts.ToList();
+        if (typeof(TAlert) == typeof(ChannelQuestionAlert))
+            return (IEnumerable<TAlert>) context.ChannelQuestionAlerts.ToList();
+        throw new ArgumentException("TAlert must be either UserQuestionAlert or ChannelQuestionAlert");
     }
 
-    public async Task<IEnumerable<ChannelQuestionAlert>> GetAllChannelQuestionAlerts()
+    public async Task RemoveAlerts<TAlert>(IEnumerable<TAlert> alerts) where TAlert : QuestionAlert
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        return context.ChannelQuestionAlerts.ToList();
+        if (alerts is IEnumerable<UserQuestionAlert> userAlerts)
+            context.UserQuestionAlerts.RemoveRange(userAlerts);
+        else if (alerts is IEnumerable<ChannelQuestionAlert> channelAlerts)
+            context.ChannelQuestionAlerts.RemoveRange(channelAlerts);
+        await context.SaveChangesAsync();
     }
 
 
@@ -86,12 +106,5 @@ public class Data
     public bool TryGetResponse(ulong id, out ResponseLinks response)
     {
         return _responses.TryGetValue(id, out response!);
-    }
-
-
-    public Data()
-    {
-        _responses = new Dictionary<ulong, ResponseLinks>();
-        _contextFactory = new MetaculusContext.MetaculusContextFactory();
     }
 }

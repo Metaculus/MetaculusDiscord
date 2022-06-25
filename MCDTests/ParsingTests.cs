@@ -7,7 +7,7 @@ namespace MCDTests;
 public class ParsingTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
-    private HttpClient client = new();
+    private readonly HttpClient client = new();
 
     public ParsingTests(ITestOutputHelper testOutputHelper)
     {
@@ -21,7 +21,7 @@ public class ParsingTests
         var response00 = client.GetStringAsync("https://www.metaculus.com/api2/questions/9450");
         // numeric resolved
         var response01 = client.GetStringAsync("https://www.metaculus.com/api2/questions/402");
-        // date ambiguous resolved
+        // binary ambiguous resolved
         var response10 = client.GetStringAsync("https://www.metaculus.com/api2/questions/9459");
         // date unresolved, >1 prediction edge case
         var response11 = client.GetStringAsync("https://www.metaculus.com/api2/questions/5237");
@@ -51,7 +51,20 @@ public class ParsingTests
         var response20AlertQuestion = new AlertQuestion(response20Json);
         var response21AlertQuestion = new AlertQuestion(response21Json);
 
-        _testOutputHelper.WriteLine(response11AlertQuestion.Value.ToString());
-        // Assert.Equal(1, response00AlertQuestion.Value);
+        // this is to confirm that the parsing does not throw an error...    
+        _testOutputHelper.WriteLine(
+            $"{response00AlertQuestion.Value},{response00AlertQuestion.Type},{response00AlertQuestion.DayOldValue},{response00AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response01AlertQuestion.Value},{response01AlertQuestion.Type},{response01AlertQuestion.DayOldValue},{response01AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response10AlertQuestion.Value},{response10AlertQuestion.Type},{response10AlertQuestion.DayOldValue},{response10AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response11AlertQuestion.Value},{response11AlertQuestion.Type},{response11AlertQuestion.DayOldValue},{response11AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response12AlertQuestion.Value},{response12AlertQuestion.Type},{response12AlertQuestion.DayOldValue},{response12AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response20AlertQuestion.Value},{response20AlertQuestion.Type},{response20AlertQuestion.DayOldValue},{response20AlertQuestion.DateValue}");
+        _testOutputHelper.WriteLine(
+            $"{response21AlertQuestion.Value},{response21AlertQuestion.Type},{response21AlertQuestion.DayOldValue},{response21AlertQuestion.DateValue}");
     }
 }

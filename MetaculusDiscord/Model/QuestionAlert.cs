@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace MetaculusDiscord.Model;
 
 /// <summary>
-/// Defines base of a question alert that to be put into the database.
+///     Defines base of a question alert that to be put into the database.
 /// </summary>
 public abstract class QuestionAlert
 {
@@ -17,7 +17,7 @@ public abstract class QuestionAlert
 }
 
 /// <summary>
-/// Question with an id of the user to be alerted.
+///     Question with an id of the user to be alerted.
 /// </summary>
 public class UserQuestionAlert : QuestionAlert
 {
@@ -25,7 +25,7 @@ public class UserQuestionAlert : QuestionAlert
 }
 
 /// <summary>
-/// Question with an id of the channel to be alerted.
+///     Question with an id of the channel to be alerted.
 /// </summary>
 public class ChannelQuestionAlert : QuestionAlert
 {

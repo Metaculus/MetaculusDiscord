@@ -20,7 +20,7 @@ public class Program
     }
 
     /// <summary>
-    /// Configures and hosts the bots services.
+    ///     Configures and hosts the bots services.
     /// </summary>
     private static async Task MainAsync()
     {
