@@ -17,6 +17,7 @@ public class MetaculusContext : DbContext
 
     public DbSet<UserQuestionAlert> UserQuestionAlerts { get; set; }
     public DbSet<ChannelQuestionAlert> ChannelQuestionAlerts { get; set; }
+    public DbSet<ChannelCategoryAlert> CategoryChannelAlerts { get; set; }
 
 
     public class MetaculusContextFactory : IDbContextFactory<MetaculusContext>

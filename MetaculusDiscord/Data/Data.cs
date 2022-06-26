@@ -16,7 +16,7 @@ public class Data
         _contextFactory = new MetaculusContext.MetaculusContextFactory();
     }
 
-    public async Task<bool> TryAddAlertAsync<TAlert>(TAlert alert) where TAlert : QuestionAlert
+    public async Task<bool> TryAddAlertAsync<TAlert>(TAlert alert) where TAlert : Alert 
     {
         await using var db = await _contextFactory.CreateDbContextAsync();
         if (alert is UserQuestionAlert userAlert)
@@ -28,9 +28,16 @@ public class Data
         else if (alert is ChannelQuestionAlert channelAlert)
         {
             if (db.ChannelQuestionAlerts.Any(a =>
-                    a.ChannelId == channelAlert.ChannelId && a.QuestionId == alert.QuestionId))
+                    a.ChannelId == channelAlert.ChannelId && a.QuestionId == channelAlert.QuestionId))
                 return false;
             db.ChannelQuestionAlerts.Add(channelAlert);
+        }
+        else if (alert is ChannelCategoryAlert categoryAlert)
+        {
+            if (db.CategoryChannelAlerts.Any(a =>
+                    a.CategoryId == categoryAlert.CategoryId && a.ChannelId == categoryAlert.ChannelId))
+                return false;
+            db.CategoryChannelAlerts.Add(categoryAlert);
         }
         else
         {
@@ -41,8 +48,7 @@ public class Data
         return true;
     }
 
-    // generic version:
-    public async Task<bool> TryRemoveAlertAsync<TAlert>(TAlert alert) where TAlert : QuestionAlert
+    public async Task<bool> TryRemoveAlertAsync<TAlert>(TAlert alert) where TAlert : Alert
     {
         await using var db = await _contextFactory.CreateDbContextAsync();
         if (alert is UserQuestionAlert userQuestionAlert)
@@ -58,10 +64,19 @@ public class Data
         {
             var dbAlert =
                 db.ChannelQuestionAlerts.FirstOrDefault(a =>
-                    a.ChannelId == channelQuestionAlert.ChannelId && a.QuestionId == alert.QuestionId);
+                    a.ChannelId == channelQuestionAlert.ChannelId && a.QuestionId == channelQuestionAlert.QuestionId);
             if (dbAlert is null) return false;
 
             db.ChannelQuestionAlerts.Remove(dbAlert);
+        }
+        else if (alert is ChannelCategoryAlert categoryChannelAlert)
+        {
+            var dbAlert =
+                db.CategoryChannelAlerts.FirstOrDefault(a =>
+                    a.CategoryId == categoryChannelAlert.CategoryId && a.ChannelId == categoryChannelAlert.ChannelId);
+            if (dbAlert is null) return false;
+            
+            db.CategoryChannelAlerts.Remove(dbAlert);
         }
         else
         {
@@ -72,23 +87,29 @@ public class Data
         return true;
     }
 
-    public async Task<IEnumerable<TAlert>> GetAllAlertsAsync<TAlert>() where TAlert : QuestionAlert
+    public async Task<IEnumerable<TAlert>> GetAllAlertsAsync<TAlert>() where TAlert : Alert 
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         if (typeof(TAlert) == typeof(UserQuestionAlert))
             return (IEnumerable<TAlert>) context.UserQuestionAlerts.ToList();
         if (typeof(TAlert) == typeof(ChannelQuestionAlert))
             return (IEnumerable<TAlert>) context.ChannelQuestionAlerts.ToList();
+        if (typeof(TAlert) == typeof(ChannelCategoryAlert))
+            return (IEnumerable<TAlert>) context.CategoryChannelAlerts.ToList();
         throw new ArgumentException("TAlert must be either UserQuestionAlert or ChannelQuestionAlert");
     }
 
-    public async Task RemoveAlerts<TAlert>(IEnumerable<TAlert> alerts) where TAlert : QuestionAlert
+    public async Task RemoveAlerts<TAlert>(IEnumerable<TAlert> alerts) where TAlert : Alert 
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         if (alerts is IEnumerable<UserQuestionAlert> userAlerts)
             context.UserQuestionAlerts.RemoveRange(userAlerts);
         else if (alerts is IEnumerable<ChannelQuestionAlert> channelAlerts)
             context.ChannelQuestionAlerts.RemoveRange(channelAlerts);
+        else if (alerts is IEnumerable<ChannelCategoryAlert> categoryAlerts)
+            context.CategoryChannelAlerts.RemoveRange(categoryAlerts);
+        else
+            throw new ArgumentException("TAlert must be either UserQuestionAlert or ChannelQuestionAlert");
         await context.SaveChangesAsync();
     }
 

@@ -22,4 +22,20 @@ public class ApiUtils
             return null;
         }
     }
+
+    public static async Task<bool> IsCategoryValid(string categoryId)
+    {
+        using HttpClient client = new HttpClient();
+        try
+        {
+            var response = await client.GetStringAsync("https://www.metaculus.com/api2/categories/" + categoryId);
+        }
+        catch (HttpRequestException)
+        {
+            return false;
+        }
+
+        return true;
+
+    }
 }

@@ -134,12 +134,12 @@ public class AlertQuestion : Question
         }
     }
 
-    public double Value { get; set; }
-    public double DayOldValue { get; set; }
-    public double SixHoursOldValue { get; set; }
-    public DateTime? DateValue { get; set; }
-    public DateTime? DayOldDateValue { get; set; }
-    public DateTime? SixHoursOldDateValue { get; set; }
+    public double Value { get; }
+    public double DayOldValue { get; }
+    public double SixHoursOldValue { get; }
+    public DateTime? DateValue { get; }
+    public DateTime? DayOldDateValue { get; }
+    public DateTime? SixHoursOldDateValue { get; }
 
     /// <summary>
     ///     true if resolved, false if not resolved, null if resolved as ambiguous

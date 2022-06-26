@@ -5,6 +5,7 @@ using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
+using MetaculusDiscord.Model;
 using MetaculusDiscord.Modules;
 using MetaculusDiscord.Utils;
 using Microsoft.Extensions.Configuration;
@@ -23,9 +24,10 @@ public class InteractionHandler : DiscordClientService
     private readonly IServiceProvider _provider;
     private readonly CommandService _service;
 
-    public InteractionHandler(IServiceProvider provider, DiscordSocketClient client, CommandService service,
-        InteractionService interactionService, IConfiguration configuration, ILogger<DiscordClientService> logger,
-        Data.Data data)
+    
+        public InteractionHandler(IServiceProvider provider, DiscordSocketClient client, CommandService service,
+            InteractionService interactionService, IConfiguration configuration, ILogger<DiscordClientService> logger,
+            Data.Data data)
         : base(client, logger)
     {
         _interactionService = interactionService;
@@ -44,6 +46,7 @@ public class InteractionHandler : DiscordClientService
         await _service.AddModuleAsync(typeof(Search.SearchCommands), _provider);
         await _service.AddModuleAsync(typeof(UtilCommands), _provider);
         await _service.AddModuleAsync(typeof(AlertCommands), _provider);
+        await _service.AddModuleAsync(typeof(FollowCommands), _provider);
         await _interactionService.AddModuleAsync(typeof(Search.SearchSlash), _provider);
         _client.ReactionAdded += OnReactAdded;
         _client.ReactionRemoved += OnReactRemoved;
@@ -71,36 +74,42 @@ public class InteractionHandler : DiscordClientService
     {
         var message = await messageC.GetOrDownloadAsync();
         // if user is not this bot and it is on a this bot's message, return 
-        if (!(_client.CurrentUser.Id != reaction.UserId && message.Author.Id == _client.CurrentUser.Id))
-            return;
+        if (_client.CurrentUser.Id == reaction.UserId || message.Author.Id != _client.CurrentUser.Id) return;
+
         if (message.Content.StartsWith("Results:"))
-            goto here; //todo remove prasárna :WeirdChamp:
+        {
+            // handle messages that are a singular metaculus link
+            var selected = -1;
+            foreach (var (i, e) in EmotesUtils.GetEmojiNumbersDict())
+                if (e.Name.Equals(reaction.Emote.Name))
+                    selected = i;
+            if (selected == -1) return;
+            var channel = await channelC.GetOrDownloadAsync();
+            if (_data.TryGetResponse(message.Id, out var response))
+                await channel.SendMessageAsync(response.Links[selected - 1]);
+            return;
+        }
+
         // if the message does not satisfy the following regex: /https:\/\/www\.metaculus\.com\/questions\/[0-9]+\/.*/gm then return 
         // we're only interested in messages that are metaculus links
         //todo optimize
         if (!Regex.IsMatch(message.Content, @"https:\/\/www\.metaculus\.com\/questions\/[0-9]+\/.*"))
             return;
         // extract the id number from the message and return if it's not possible
-        ulong number;
-        if (!ulong.TryParse(
+        if (!long.TryParse(
                 Regex.Match(message.Content, @"https:\/\/www\.metaculus\.com\/questions\/([0-9]+)\/.*")?.Groups[1]
                     ?.Value,
-                out number))
+                out var questionId))
             return;
         if (reaction.Emote.Name.Equals(_configuration["UserAlertEmoji"]))
-            // CreateAlert() //todo implement this using creating artificial commands
-            return;
-        here:
-        // we want to handle only messages that are a singular metaculus link
-        // await channel.SendMessageAsync(reaction.Emote.Name);
-        var selected = -1;
-        foreach (var (i, e) in EmotesUtils.GetEmojiNumbersDict())
-            if (e.Name.Equals(reaction.Emote.Name))
-                selected = i;
-        if (selected == -1) return;
-        var channel = await channelC.GetOrDownloadAsync();
-        if (_data.TryGetResponse(message.Id, out var response))
-            await channel.SendMessageAsync(response.Links[selected - 1]);
+             AddUserAlertEmote(reaction.UserId, questionId); //todo implement this using creating artificial commands
+    }
+    // todo unify with command alert
+    private async void AddUserAlertEmote(ulong reactionUserId, long questionId) 
+    {
+        var alert = new UserQuestionAlert(){UserId = reactionUserId, QuestionId = questionId};
+        await _data.TryAddAlertAsync(alert);
+        // send confirmation
     }
 
     /// <summary>
@@ -122,7 +131,7 @@ public class InteractionHandler : DiscordClientService
 
 
     /// <summary>
-    ///     Used only once,I already ran it for this bot,
+    ///     Used only once, I already ran it for this bot,
     ///     in case something changes add it as a handler for _client.Ready event
     /// </summary>
     private async Task MakeCommand()

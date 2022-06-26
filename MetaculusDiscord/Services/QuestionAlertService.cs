@@ -48,6 +48,7 @@ public class AlertService : DiscordClientService
     /// </summary>
     private void AlertAll(object? sender, ElapsedEventArgs e)
     {
+        // they can run concurrently because they don't interact 
         Task.Run(Alert<UserQuestionAlert>);
         Task.Run(Alert<ChannelQuestionAlert>);
     }
@@ -91,10 +92,10 @@ public class AlertService : DiscordClientService
         }
 
         // send messages
-        resolved.ForEach(t => Task.Run(() => SendResolvedMessageAsync(t)));
-        ambiguous.ForEach(t => Task.Run(() => SendAmbiguousMessageAsync(t)));
-        sixHourSwing.ForEach(t => Task.Run(() => SendSixHourSwingMessageAsync(t)));
-        daySwing.ForEach(t => Task.Run(() => SendDaySwingMessageAsync(t)));
+        resolved.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.Resolved)));
+        ambiguous.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.Ambiguous)));
+        sixHourSwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.SixHourSwing)));
+        daySwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.DaySwing)));
 
 
         // update db
@@ -130,50 +131,49 @@ public class AlertService : DiscordClientService
         }
     }
 
-    /// <summary>
-    ///     Create a message for a resolved alert and send it.
-    /// </summary>
-    private async Task SendResolvedMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    public enum AlertKind
     {
-        var (alert, question) = t;
-        var message =
-            $"Question {question.Id}: {question.Title} has been resolved.\n The answer is **{question.ValueString()}** \n" +
-            question.ShortUrl();
-        await SendAlertMessageAsync(message, alert);
+        Resolved,
+        Ambiguous,
+        SixHourSwing,
+        DaySwing
     }
 
     /// <summary>
-    ///     Create a message for an ambiguously resolved alert and send it.
+    ///     Create message for an alert depending on its kind and send it.
     /// </summary>
-    private async Task SendAmbiguousMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
+    private async Task CreateAlertMessageAndSendAsync<T>(Tuple<T, AlertQuestion> t, AlertKind kind)
+        where T : QuestionAlert
     {
         var (alert, question) = t;
-        var message = $"Question {question.Id}: {question.Title} has been resolved as **ambiguous** \n" +
-                      question.ShortUrl();
-        await SendAlertMessageAsync(message, alert);
-    }
+        string message;
+        switch (kind)
+        {
+            case AlertKind.Resolved:
+                message =
+                    $"Question {question.Id}: {question.Title} has been resolved.\n The answer is **{question.ValueString()}** \n" +
+                    question.ShortUrl();
+                break;
+            case AlertKind.Ambiguous:
+                message = $"Question {question.Id}: {question.Title} has been resolved as **ambiguous** \n" +
+                          question.ShortUrl();
+                break;
+            case AlertKind.SixHourSwing:
+                message =
+                    $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past 6 hours! \n" +
+                    $"{question.SixHoursOldValueString()} {EmotesUtils.SignEmote(question.SixHourSwing())}  **{question.ValueString()}**\n" +
+                    question.ShortUrl();
+                break;
+            case AlertKind.DaySwing:
+                message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past day! \n" +
+                          $"{question.DayOldValueString()} {EmotesUtils.SignEmote(question.DaySwing())}  **{question.ValueString()}**\n" +
+                          question.ShortUrl();
+                break;
+            default:
+                message = "";
+                break;
+        }
 
-    /// <summary>
-    ///     Create message for an alert which has shifted significantly in the last 6 hours and send it.
-    /// </summary>
-    private async Task SendSixHourSwingMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
-    {
-        var (alert, question) = t;
-        var message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past 6 hours! \n" +
-                      $"{question.SixHoursOldValueString()} {EmotesUtils.SignEmote(question.SixHourSwing())}  **{question.ValueString()}**\n" +
-                      question.ShortUrl();
-        await SendAlertMessageAsync(message, alert);
-    }
-
-    /// <summary>
-    ///     Create message for an alert which has shifted significantly in the last day and send it.
-    /// </summary>
-    private async Task SendDaySwingMessageAsync<T>(Tuple<T, AlertQuestion> t) where T : QuestionAlert
-    {
-        var (alert, question) = t;
-        var message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past day! \n" +
-                      $"{question.DayOldValueString()} {EmotesUtils.SignEmote(question.DaySwing())}  **{question.ValueString()}**\n" +
-                      question.ShortUrl();
         await SendAlertMessageAsync(message, alert);
     }
 
