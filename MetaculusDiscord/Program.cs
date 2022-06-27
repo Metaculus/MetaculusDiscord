@@ -51,8 +51,10 @@ public class Program
                     x.UseNpgsql(context.Configuration.GetConnectionString("Default")));
                 services.AddHostedService<InteractionHandler>()
                     .AddSingleton<Data.Data>(); // injecting class Data into commandHandler
-                services.AddHostedService<AlertService>()
+                services.AddHostedService<QuestionAlertService>()
                     .AddSingleton<Data.Data>(); // injecting class Data into alertService
+                services.AddHostedService<CategoricalService>()
+                    .AddSingleton<Data.Data>();
             })
             .UseConsoleLifetime();
         var host = builder.Build();

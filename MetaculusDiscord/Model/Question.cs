@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace MetaculusDiscord.Model;
 
@@ -18,6 +19,7 @@ public abstract class Question
     public long Id { get; set; }
     public string Title { get; set; } = "";
     public QuestionType Type { get; set; }
+    public DateTime PublishTime { get; set; }
 
     public string ShortUrl()
     {
@@ -35,7 +37,7 @@ public class SearchResultQuestion : Question
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
         string publishTime = dynamicQuestion.publish_time;
-        PublishTime = DateTime.Parse(publishTime).Date;
+        PublishTime = DateTime.Parse(publishTime);
         PageUrl = dynamicQuestion.page_url;
     }
 
@@ -44,7 +46,6 @@ public class SearchResultQuestion : Question
     /// </summary>
     public string PageUrl { get; set; }
 
-    public DateTime PublishTime { get; set; }
 }
 
 /// <summary>
@@ -55,6 +56,7 @@ public class AlertQuestion : Question
     private readonly double _rawDayOldValue;
     private readonly double _rawSixHoursOldValue;
     private readonly double _rawValue;
+    private readonly DateTime _publishTime;
 
     /// <summary>
     ///     Parses the question with the predictions from a dynamic json object.
@@ -62,9 +64,12 @@ public class AlertQuestion : Question
     /// <param name="dynamicQuestion">Dynamic Json object, that supports the dot notation for getting its elements.</param>
     /// <exception cref="Exception">Throws exception when the type of the question isn't supported.</exception>
     public AlertQuestion(dynamic dynamicQuestion)
-    {
+    {  
+        //todo fix exception here for question 2646
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
+        // Console.WriteLine(Title);
+        PublishTime = DateTime.Parse((string)dynamicQuestion.publish_time);
 
         double? resolution = dynamicQuestion.resolution;
         _rawSixHoursOldValue =
@@ -74,7 +79,13 @@ public class AlertQuestion : Question
         if (resolution is null)
         {
             Resolved = false;
-            _rawValue = dynamicQuestion.community_prediction.full.q2; // the current prediction
+            try{
+            _rawValue = dynamicQuestion.community_prediction.full.q2; // the current prediction 
+            } // sometimes this field is not in the api :(
+            catch (RuntimeBinderException)
+            {
+                _rawValue = 0;
+            }
         }
         else if (Math.Abs((double) resolution - -1) < .000001) // -1 denotes ambiguous
         {

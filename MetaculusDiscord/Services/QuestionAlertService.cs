@@ -10,18 +10,14 @@ using Timer = System.Timers.Timer;
 
 namespace MetaculusDiscord.Services;
 
-public class AlertService : DiscordClientService
+public class QuestionAlertService : AlertDiscordClientService 
 {
-    private readonly Data.Data _data;
-    private readonly IConfiguration _configuration;
     private Timer? _timer;
 
-    public AlertService(DiscordSocketClient client, ILogger<DiscordClientService> logger, Data.Data data,
+    public QuestionAlertService(DiscordSocketClient client, ILogger<QuestionAlertService> logger, Data.Data data,
         IConfiguration configuration) : base(client,
-        logger)
+        logger,data,configuration)
     {
-        _data = data;
-        _configuration = configuration;
     }
 
     /// <summary>
@@ -48,9 +44,20 @@ public class AlertService : DiscordClientService
     /// </summary>
     private void AlertAll(object? sender, ElapsedEventArgs e)
     {
+        Logger.LogInformation("Alerting all users and channels");
         // they can run concurrently because they don't interact 
-        Task.Run(Alert<UserQuestionAlert>);
-        Task.Run(Alert<ChannelQuestionAlert>);
+        var t1 =Task.Run(Alert<UserQuestionAlert>);
+        var t2 =Task.Run(Alert<ChannelQuestionAlert>);
+        try
+        {
+            Task.WaitAll(t1, t2);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Error in alerting users and channels");
+            Logger.LogError(ex.ToString());
+        }
+        Logger.LogInformation("Alerting all users and channels complete");
     }
 
     /// <summary>
@@ -60,7 +67,7 @@ public class AlertService : DiscordClientService
     private async Task Alert<T>() where T : QuestionAlert
     {
         // load all personal  alerts to memory 
-        var allUserAlerts = await _data.GetAllAlertsAsync<T>();
+        var allUserAlerts = await Data.GetAllAlertsAsync<T>();
         // download and parse all questions from the api
         var alertsAndQuestions = JoinWithQuestions(allUserAlerts.ToList());
         // filter for those that have resolved -> send message -> remove from db
@@ -69,8 +76,8 @@ public class AlertService : DiscordClientService
         List<Tuple<T, AlertQuestion>> sixHourSwing = new();
         List<Tuple<T, AlertQuestion>> daySwing = new();
         // split 
-        var daySwingThreshold = _configuration.GetValue<double>("DaySwingThreshold");
-        var sixHourSwingThreshold = _configuration.GetValue<double>("SixHourSwingThreshold");
+        var daySwingThreshold = Configuration.GetValue<double>("DaySwingThreshold");
+        var sixHourSwingThreshold = Configuration.GetValue<double>("SixHourSwingThreshold");
         foreach (var alertAndQuestion in alertsAndQuestions)
         {
             var question = alertAndQuestion.Item2;
@@ -104,78 +111,13 @@ public class AlertService : DiscordClientService
             foreach (var item in resolved)
             {
                 var (alert, _) = item;
-                await _data.TryRemoveAlertAsync(alert);
+                await Data.TryRemoveAlertAsync(alert);
             }
         });
-        await _data.RemoveAlerts(resolved.Select(t => t.Item1));
-        await _data.RemoveAlerts(ambiguous.Select(t => t.Item1));
+        await Data.RemoveAlerts(resolved.Select(t => t.Item1));
+        await Data.RemoveAlerts(ambiguous.Select(t => t.Item1));
     }
 
-    /// <summary>
-    ///     Sends a message either to channel or DM depending on the alert type.
-    /// </summary>
-    /// <param name="message">Message to be sent</param>
-    /// <param name="alert">Alert whose target is sent the message.</param>
-    /// <typeparam name="TAlert">QuestionAlert</typeparam>
-    private async Task SendAlertMessageAsync<TAlert>(string message, TAlert alert) where TAlert : QuestionAlert
-    {
-        if (alert is UserQuestionAlert userAlert)
-        {
-            var target = await Client.GetUserAsync(userAlert.UserId);
-            await target.SendMessageAsync(message);
-        }
-        else if (alert is ChannelQuestionAlert channelAlert)
-        {
-            if (await Client.GetChannelAsync(channelAlert.ChannelId) is ITextChannel target)
-                await target.SendMessageAsync(message);
-        }
-    }
-
-    public enum AlertKind
-    {
-        Resolved,
-        Ambiguous,
-        SixHourSwing,
-        DaySwing
-    }
-
-    /// <summary>
-    ///     Create message for an alert depending on its kind and send it.
-    /// </summary>
-    private async Task CreateAlertMessageAndSendAsync<T>(Tuple<T, AlertQuestion> t, AlertKind kind)
-        where T : QuestionAlert
-    {
-        var (alert, question) = t;
-        string message;
-        switch (kind)
-        {
-            case AlertKind.Resolved:
-                message =
-                    $"Question {question.Id}: {question.Title} has been resolved.\n The answer is **{question.ValueString()}** \n" +
-                    question.ShortUrl();
-                break;
-            case AlertKind.Ambiguous:
-                message = $"Question {question.Id}: {question.Title} has been resolved as **ambiguous** \n" +
-                          question.ShortUrl();
-                break;
-            case AlertKind.SixHourSwing:
-                message =
-                    $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past 6 hours! \n" +
-                    $"{question.SixHoursOldValueString()} {EmotesUtils.SignEmote(question.SixHourSwing())}  **{question.ValueString()}**\n" +
-                    question.ShortUrl();
-                break;
-            case AlertKind.DaySwing:
-                message = $"⚠️Question {question.Id}: {question.Title} has shifted significantly in the past day! \n" +
-                          $"{question.DayOldValueString()} {EmotesUtils.SignEmote(question.DaySwing())}  **{question.ValueString()}**\n" +
-                          question.ShortUrl();
-                break;
-            default:
-                message = "";
-                break;
-        }
-
-        await SendAlertMessageAsync(message, alert);
-    }
 
 
     /// <summary>
@@ -187,7 +129,7 @@ public class AlertService : DiscordClientService
         List<T> alerts) where T : QuestionAlert
     {
         // get the AlertQuestions in any order
-        var allQuestionIds = alerts.AsParallel().Select(x => x.QuestionId).Distinct();
+        var allQuestionIds = alerts.Select(x => x.QuestionId).Distinct();
         var questions = allQuestionIds.Select(ApiUtils.GetAlertQuestionFromIdAsync).Where(y => y.Result != null)
             .ToArray();
         Task.WaitAll(questions);
