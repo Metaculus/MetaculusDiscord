@@ -54,12 +54,6 @@ public class InteractionHandler : DiscordClientService
         _client.SlashCommandExecuted += SlashCommandExecuted;
     }
 
-    // todo: removing alerts from removing reactions 
-    private Task OnReactRemoved(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2,
-        SocketReaction arg3)
-    {
-        throw new NotImplementedException();
-    }
 
     private async Task SlashCommandExecuted(SocketSlashCommand socketSlashCommand)
     {
@@ -67,8 +61,9 @@ public class InteractionHandler : DiscordClientService
         await _interactionService.ExecuteCommandAsync(context, _provider);
     }
 
-
-    // 1. je to validní emote, 2. je to od validního uživatele 3. checknout databázi, jestli daný message je zajímavý. Pokud je vše splněno lze vykonat akci emotu s pomocí messaage.
+/// <summary>
+/// Performs actions defined by the reaction which are in case of numeric to results: send the link to the corresponding question adn in case of "
+/// </summary>
     private async Task OnReactAdded(Cacheable<IUserMessage, ulong> messageC, Cacheable<IMessageChannel, ulong> channelC,
         SocketReaction reaction)
     {
@@ -82,7 +77,9 @@ public class InteractionHandler : DiscordClientService
             var selected = -1;
             foreach (var (i, e) in EmotesUtils.GetEmojiNumbersDict())
                 if (e.Name.Equals(reaction.Emote.Name))
-                    selected = i;
+                    // restrict posting the same link multiple times
+                    if (message.Reactions.ContainsKey(e) && message.Reactions[e].ReactionCount < 3)  
+                        selected = i;
             if (selected == -1) return;
             var channel = await channelC.GetOrDownloadAsync();
             if (_data.TryGetResponse(message.Id, out var response))
@@ -90,27 +87,58 @@ public class InteractionHandler : DiscordClientService
             return;
         }
 
-        // if the message does not satisfy the following regex: /https:\/\/www\.metaculus\.com\/questions\/[0-9]+\/.*/gm then return 
-        // we're only interested in messages that are metaculus links
-        //todo optimize
-        if (!Regex.IsMatch(message.Content, @"https:\/\/www\.metaculus\.com\/questions\/[0-9]+\/.*"))
+        if (!reaction.Emote.Name.Equals(_configuration["UserAlertEmoji"]))
             return;
+
+        // if the message that is reacted to is not a metaculus link, return
         // extract the id number from the message and return if it's not possible
         if (!long.TryParse(
                 Regex.Match(message.Content, @"https:\/\/www\.metaculus\.com\/questions\/([0-9]+)\/.*")?.Groups[1]
                     ?.Value,
                 out var questionId))
             return;
-        if (reaction.Emote.Name.Equals(_configuration["UserAlertEmoji"]))
-             AddUserAlertEmote(reaction.UserId, questionId); //todo implement this using creating artificial commands
+        await AddUserAlert(reaction.UserId, questionId); 
     }
-    // todo unify with command alert
-    private async void AddUserAlertEmote(ulong reactionUserId, long questionId) 
+/// <summary>
+/// If UserAlertEmoji is removed from a link then remove the alert for that question.
+/// </summary>
+    private async Task OnReactRemoved(Cacheable<IUserMessage, ulong> messageC, Cacheable<IMessageChannel, ulong> chanelC,
+        SocketReaction reaction)
+{
+        var message = await  messageC.GetOrDownloadAsync();
+        if (!long.TryParse(
+                Regex.Match(message.Content, @"https:\/\/www\.metaculus\.com\/questions\/([0-9]+)\/.*")?.Groups[1]
+                    ?.Value,
+                out var questionId))
+            return;
+        await RemoveUserAlert(reaction.UserId, questionId); 
+        
+    }
+
+
+// todo refactor to unify with command version 
+    private async Task AddUserAlert(ulong reactionUserId, long questionId) 
     {
         var alert = new UserQuestionAlert(){UserId = reactionUserId, QuestionId = questionId};
-        await _data.TryAddAlertAsync(alert);
-        // send confirmation
+        var user = await _client.GetUserAsync(reactionUserId);
+        if (await _data.TryAddAlertAsync(alert))
+        {
+            await user.SendMessageAsync($"Alert for question {questionId} set");
+        }
+        else
+        {
+            await user.SendMessageAsync($"Error: Alert for question {questionId} already set");
+        }
     }
+private async Task RemoveUserAlert(ulong reactionUserId, long questionId)
+{
+    var alert = new UserQuestionAlert(){UserId = reactionUserId, QuestionId = questionId};
+    if (await _data.TryRemoveAlertAsync(alert))
+    {
+        var user = await _client.GetUserAsync(reactionUserId);
+        await user.SendMessageAsync($"Alert for question {questionId} removed");
+    }
+}
 
     /// <summary>
     ///     The bot listens for messages and when it finds a message with its prefix, it tries to execute the command.
