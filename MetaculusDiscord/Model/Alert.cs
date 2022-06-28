@@ -25,7 +25,7 @@ public abstract class QuestionAlert : Alert
 /// <summary>
 ///    Alert for a single question to user DM.
 /// </summary>
-public class UserQuestionAlert : QuestionAlert
+public sealed class UserQuestionAlert : QuestionAlert
 {
     [Column("user_id")] public ulong UserId { get; set; }
 }
@@ -33,7 +33,7 @@ public class UserQuestionAlert : QuestionAlert
 /// <summary>
 /// Alert for a single question to a server channel.
 /// </summary>
-public class ChannelQuestionAlert : QuestionAlert
+public sealed class ChannelQuestionAlert : QuestionAlert
 {
     [Column("channel_id")] public ulong ChannelId { get; set; }
 }
@@ -49,7 +49,7 @@ public class CategoryAlert : Alert
 /// <summary>
 /// Alert for a category of questions for a public channel.
 /// </summary>
-public class ChannelCategoryAlert : CategoryAlert
+public sealed class ChannelCategoryAlert : CategoryAlert
 {
     [Column("channel_id")] public ulong ChannelId { get; set; }
 }

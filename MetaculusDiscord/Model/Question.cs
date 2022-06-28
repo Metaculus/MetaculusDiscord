@@ -34,7 +34,7 @@ public abstract class Question
 /// <summary>
 ///     Question representation used for showing the user search results.
 /// </summary>
-public class SearchResultQuestion : Question
+public sealed class SearchResultQuestion : Question
 {
     public SearchResultQuestion(dynamic dynamicQuestion)
     {
@@ -53,7 +53,7 @@ public class SearchResultQuestion : Question
 /// <summary>
 ///     Question representation used for sending alerts.
 /// </summary>
-public class AlertQuestion : Question
+public sealed class AlertQuestion : Question
 {
     private readonly double _rawDayOldValue;
     private readonly double _rawSixHoursOldValue;
