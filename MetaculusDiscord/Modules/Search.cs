@@ -57,7 +57,7 @@ public class Search
             jsonString = await client.GetStringAsync(requestUrl);
         }
         // catch exception when the request fails
-        catch (Exception e)
+        catch (Exception)
         {
             jsonString = null;
         }

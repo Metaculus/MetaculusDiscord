@@ -13,9 +13,9 @@ namespace MetaculusDiscord.Services;
 /// </summary>
 public abstract class AlertService : DiscordClientService
 {
-    protected Data.Data Data { get; set; }
-    protected IConfiguration Configuration { get; set; }
-    protected new ILogger<AlertService> Logger { get; set; }
+    protected Data.Data Data { get; }
+    protected IConfiguration Configuration { get; }
+    protected new ILogger<AlertService> Logger { get; }
 
     protected AlertService(DiscordSocketClient client, ILogger<AlertService> logger, Data.Data data,
         IConfiguration configuration) : base(client, logger)
