@@ -67,4 +67,40 @@ public class ParsingTests
         _testOutputHelper.WriteLine(
             $"{response21AlertQuestion.Value},{response21AlertQuestion.Type},{response21AlertQuestion.DayOldValue},{response21AlertQuestion.DateValue}");
     }
+
+    [Fact]
+    public async Task Q2646BigInteger()
+    {
+        var response = client.GetStringAsync("https://www.metaculus.com/api2/questions/2646");
+        var responseJson = JsonConvert.DeserializeObject<dynamic>(await response);
+        var alertQuestion = new AlertQuestion(responseJson);
+        _testOutputHelper.WriteLine(
+            $"{alertQuestion.Value},{alertQuestion.Type},{alertQuestion.DayOldValue},{alertQuestion.DateValue}");
+    }
+
+    [Fact]
+    public async Task AllQs()
+    {
+        for (var i = 10000; i < 11000; i++)
+        {
+            string response;
+            try
+            {
+                response = await client.GetStringAsync($"https://www.metaculus.com/api2/questions/{i}");
+            }
+            catch (Exception e)
+            {
+                _testOutputHelper.WriteLine($"Downloading {i} failed");
+                continue;
+            }
+
+            var responseJson = JsonConvert.DeserializeObject<dynamic>(response);
+            if (responseJson.type == "forecast")
+            {
+                var alertQuestion = new AlertQuestion(responseJson);
+                _testOutputHelper.WriteLine(
+                    $"{alertQuestion.Value},{alertQuestion.Type},{alertQuestion.DayOldValue},{alertQuestion.DateValue}");
+            }
+        }
+    }
 }
