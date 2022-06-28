@@ -2,9 +2,12 @@ using Discord;
 
 namespace MetaculusDiscord.Utils;
 
+/// <summary>
+/// Static class holding emoji for numbers and 
+/// </summary>
 public static class EmotesUtils
 {
-    public static readonly Dictionary<int, Emoji> EmojiDict =
+    public static Dictionary<int, Emoji> NumberEmoji { get; } =
         new()
         {
             {1, new Emoji("1️⃣")},
@@ -14,22 +17,22 @@ public static class EmotesUtils
             {5, new Emoji("5️⃣")}
         };
 
-    public static Dictionary<int, Emoji> GetEmojiNumbersDict()
+    /// <summary>
+    /// Puts number emoji on message.
+    /// </summary>
+    /// <param name="message">The message to be decorated.</param>
+    /// <param name="count">With how many emoji</param>
+    public static async void NumberDecorate(IUserMessage message, int count)
     {
-        return EmojiDict;
-    }
-
-    public static async void Decorate(IUserMessage message, int count)
-    {
-        if (count > EmojiDict.Count)
+        if (count > NumberEmoji.Count)
             throw new ArgumentException("You can't decorate message with more emotes than available");
-        await message.AddReactionsAsync(EmojiDict.Values.Take(count));
+        await message.AddReactionsAsync(NumberEmoji.Values.Take(count));
     }
 
+    /// <param name="num">change</param>
+    /// <returns>Arrow emoji depending on the sign of *num*</returns>
     public static string SignEmote(double num)
     {
-        if (num > 0)
-            return "⬆️";
-        return "⬇️";
+        return num > 0 ? "⬆️" : "⬇️";
     }
 }

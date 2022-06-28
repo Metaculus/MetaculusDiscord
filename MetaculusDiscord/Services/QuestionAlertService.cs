@@ -10,13 +10,16 @@ using Timer = System.Timers.Timer;
 
 namespace MetaculusDiscord.Services;
 
-public class QuestionAlertService : AlertDiscordClientService 
+/// <summary>
+/// Service that every 6 hours checks 
+/// </summary>
+public class QuestionAlertService : AlertService
 {
     private Timer? _timer;
 
     public QuestionAlertService(DiscordSocketClient client, ILogger<QuestionAlertService> logger, Data.Data data,
         IConfiguration configuration) : base(client,
-        logger,data,configuration)
+        logger, data, configuration)
     {
     }
 
@@ -46,8 +49,8 @@ public class QuestionAlertService : AlertDiscordClientService
     {
         Logger.LogInformation("Alerting all users and channels");
         // they can run concurrently because they don't interact 
-        var t1 =Task.Run(Alert<UserQuestionAlert>);
-        var t2 =Task.Run(Alert<ChannelQuestionAlert>);
+        var t1 = Task.Run(Alert<UserQuestionAlert>);
+        var t2 = Task.Run(Alert<ChannelQuestionAlert>);
         try
         {
             Task.WaitAll(t1, t2);
@@ -57,6 +60,7 @@ public class QuestionAlertService : AlertDiscordClientService
             Logger.LogError("Error in alerting users and channels");
             Logger.LogError(ex.ToString());
         }
+
         Logger.LogInformation("Alerting all users and channels complete");
     }
 
@@ -99,10 +103,10 @@ public class QuestionAlertService : AlertDiscordClientService
         }
 
         // send messages
-        resolved.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.Resolved)));
-        ambiguous.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.Ambiguous)));
-        sixHourSwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.SixHourSwing)));
-        daySwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t,AlertKind.DaySwing)));
+        resolved.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t, AlertKind.Resolved)));
+        ambiguous.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t, AlertKind.Ambiguous)));
+        sixHourSwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t, AlertKind.SixHourSwing)));
+        daySwing.ForEach(t => Task.Run(() => CreateAlertMessageAndSendAsync(t, AlertKind.DaySwing)));
 
 
         // update db
@@ -117,7 +121,6 @@ public class QuestionAlertService : AlertDiscordClientService
         await Data.RemoveAlerts(resolved.Select(t => t.Item1));
         await Data.RemoveAlerts(ambiguous.Select(t => t.Item1));
     }
-
 
 
     /// <summary>

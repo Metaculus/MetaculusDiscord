@@ -4,9 +4,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace MetaculusDiscord.Model;
 
 /// <summary>
-///     Defines base of an alert that to be put into the database.
+///     Defines base of an alert that can be put into the database.
 /// </summary>
-public abstract class Alert 
+public abstract class Alert
 {
     [Key]
     [Column("alert_id")]
@@ -14,13 +14,16 @@ public abstract class Alert
     public int Id { get; set; }
 }
 
+/// <summary>
+/// Alerts that are for a single question.
+/// </summary>
 public abstract class QuestionAlert : Alert
 {
     [Column("question_id")] public long QuestionId { get; set; }
 }
 
 /// <summary>
-///     Question with an id of the user to be alerted.
+///    Alert for a single question to user DM.
 /// </summary>
 public class UserQuestionAlert : QuestionAlert
 {
@@ -28,18 +31,24 @@ public class UserQuestionAlert : QuestionAlert
 }
 
 /// <summary>
-///     Question with an id of the channel to be alerted.
+/// Alert for a single question to a server channel.
 /// </summary>
 public class ChannelQuestionAlert : QuestionAlert
 {
     [Column("channel_id")] public ulong ChannelId { get; set; }
 }
 
+/// <summary>
+/// Alert for a category of questions.
+/// </summary>
 public class CategoryAlert : Alert
 {
-    [Column("category_id")] public string CategoryId { get; set; }
+    [Column("category_id")] public string CategoryId { get; set; } = "";
 }
 
+/// <summary>
+/// Alert for a category of questions for a public channel.
+/// </summary>
 public class ChannelCategoryAlert : CategoryAlert
 {
     [Column("channel_id")] public ulong ChannelId { get; set; }

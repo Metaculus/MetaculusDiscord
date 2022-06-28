@@ -9,7 +9,10 @@ using Timer = System.Timers.Timer;
 
 namespace MetaculusDiscord.Services;
 
-public class CategoricalService : AlertDiscordClientService
+/// <summary>
+/// Service that every 24 hours checks categories and sends updates.
+/// </summary>
+public class CategoricalService : AlertService
 {
     public CategoricalService(DiscordSocketClient client, ILogger<CategoricalService> logger, Data.Data data,
         IConfiguration configuration) : base(client,
@@ -17,25 +20,29 @@ public class CategoricalService : AlertDiscordClientService
     {
     }
 
-#pragma warning disable CS1998
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-#pragma warning restore CS1998
+    private Timer? _timer;
+
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
 #if DEBUG
-        // Check once per day and  
         // 30 seconds 
-        var timer = new Timer(30 * 1000);
+        _timer = new Timer(30 * 1000);
 #else
+        // Check once per day 
         var timer = new System.Timers.Timer(24 * 60 * 60 * 1000);
 #endif
-        timer.Elapsed += Digest;
-        timer.Enabled = true;
-        timer.Start();
+        _timer.Elapsed += Digest;
+        _timer.Enabled = true;
+        _timer.Start();
+        return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Run the digest in a task.
+    /// </summary>
     private void Digest(object? sender, ElapsedEventArgs e)
     {
-        Logger.LogInformation("Started processing Digest.");
+        Logger.LogInformation("Started processing Digest");
         var digestTask = Task.Run(DigestAsync);
         // an error should not shut down the bot
         try
@@ -47,19 +54,23 @@ public class CategoricalService : AlertDiscordClientService
             Logger.LogError(exception, "Error in DigestAsync");
         }
 
-        Logger.LogInformation("Digest complete.");
+        Logger.LogInformation("Digest complete");
     }
 
-
+    /// <summary>
+    /// Parses all categories and sends updates.
+    /// </summary>
     private async Task DigestAsync()
     {
+        // Get all categories and get one Category object for each distinct category (we want to avoid downloading the same category twice)
         var categoricalAlerts = await Data.GetAllAlertsAsync<ChannelCategoryAlert>();
-
         var channelCategoryAlerts = categoricalAlerts as ChannelCategoryAlert[] ?? categoricalAlerts.ToArray();
-        IEnumerable<Task<Category>> categoriesTasks = channelCategoryAlerts.Select(alert => alert.CategoryId).Distinct().Select(async x=> await CategoryIdToCategoryObject(x));
+        IEnumerable<Task<Category>> categoriesTasks = channelCategoryAlerts.Select(alert => alert.CategoryId).Distinct()
+            .Select(async x => await GetCategoryFromId(x));
         var categories = await Task.WhenAll(categoriesTasks);
+        // join with the alerts to match alert destination with alert contents
         var joined = channelCategoryAlerts.Join(categories, alert => alert.CategoryId, category => category.CategoryId,
-            (alert, category) => new Tuple<ChannelCategoryAlert,Category>(alert, category));
+            (alert, category) => new Tuple<ChannelCategoryAlert, Category>(alert, category));
 
         foreach (var ac in joined)
         {
@@ -84,50 +95,56 @@ public class CategoricalService : AlertDiscordClientService
                 var tup = new Tuple<ChannelCategoryAlert, AlertQuestion>(alert, x);
                 Task.Run(() => CreateAlertMessageAndSendAsync(tup, AlertKind.DaySwing));
             });
-        }   
-        
-        
-
+        }
     }
 
-    private async Task<Category> CategoryIdToCategoryObject(string categoryId)
+    /// <summary>
+    /// Downloads all questions from the category by searching with the category id in the order of last activity.
+    /// Parses them and adds them to the Category class which keeps only the interesting ones.
+    /// </summary>
+    /// <param name="categoryId">Id of the category to be recovered.</param>
+    /// <returns>Task whose result is the Category object containing only interesting questions.</returns>
+    private async Task<Category> GetCategoryFromId(string categoryId)
     {
-        int limit = 100; // the maximum the API supports
+        const int limit = 100; // the maximum the API supports
         // this way new questions are on the top
-        string link =
+        var link =
             $"https://www.metaculus.com/api2/questions/?search=cat:{categoryId}&limit={limit}&order_by=-last_activity_time";
-        using HttpClient client = new HttpClient();
+        using var client = new HttpClient();
         var responseString = await client.GetStringAsync(link);
-
         var dynamicResponse = JsonConvert.DeserializeObject<dynamic>(responseString);
         var category = new Category(Configuration.GetValue<double>("DaySwingThreshold")) {CategoryId = categoryId};
         do
         {
+            // go through the search results
             foreach (var dynamicQuestion in dynamicResponse?.results!)
             {
-                if (dynamicQuestion.type == "forecast")
+                if (dynamicQuestion.type != "forecast") continue;
+                // stop when the updates are more than a day old
+                if (DateTime.Now - DateTime.Parse((string) dynamicQuestion.last_activity_time) >
+                    TimeSpan.FromDays(1))
+                    goto superbreak;
+                try
                 {
-                    if (DateTime.Now - DateTime.Parse((string) dynamicQuestion.last_activity_time) >
-                        TimeSpan.FromDays(1))
-                        goto superbreak;
-                    try
-                    {
-                        var q = new AlertQuestion(dynamicQuestion);
-                        category.AddQuestion(q);
-                    } catch (Exception e)
-                    { // many bad things can happen while parsing the question
-                        Logger.LogError(e, "Error in parsing question");
-                    }
+                    var q = new AlertQuestion(dynamicQuestion);
+                    category.AddQuestion(q);
+                }
+                catch (Exception e)
+                {
+                    // bad things can happen while parsing one question and we want to continue with the rest
+                    Logger.LogError(e, "Error in parsing question in category: {CategoryId}", categoryId);
                 }
             }
 
+            // there is no next page
             if (dynamicResponse.next == null || dynamicResponse.next.Equals("")) break;
+            // get the next page 
             responseString = await client.GetStringAsync(dynamicResponse.next);
             dynamicResponse = JsonConvert.DeserializeObject<dynamic>(responseString);
         } while (true);
 
         superbreak:
+
         return category;
     }
-
 }

@@ -3,12 +3,15 @@ using Discord.Interactions;
 
 namespace MetaculusDiscord.Modules;
 
-public interface IDataEnabled
+public interface IDataInteractingModule
 {
     public Data.Data Data { get; set; }
 }
 
-public abstract class BotModuleBase : ModuleBase<SocketCommandContext>, IDataEnabled
+/// <summary>
+/// Command module with injected Data access layer.
+/// </summary>
+public abstract class BotModuleBase : ModuleBase<SocketCommandContext>, IDataInteractingModule
 {
     protected BotModuleBase(Data.Data data)
     {
@@ -18,7 +21,10 @@ public abstract class BotModuleBase : ModuleBase<SocketCommandContext>, IDataEna
     public Data.Data Data { get; set; }
 }
 
-public abstract class BotInteractionModuleBase : InteractionModuleBase, IDataEnabled
+/// <summary>
+/// Interaction module (for slash commands) with injected Data.
+/// </summary>
+public abstract class BotInteractionModuleBase : InteractionModuleBase, IDataInteractingModule
 {
     protected BotInteractionModuleBase(Data.Data data)
     {

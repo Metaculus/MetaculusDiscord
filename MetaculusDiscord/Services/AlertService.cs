@@ -8,31 +8,37 @@ using Microsoft.Extensions.Logging;
 
 namespace MetaculusDiscord.Services;
 
-public abstract class AlertDiscordClientService : DiscordClientService
+/// <summary>
+/// Base class for alert services. Provides methods for creating messages and sending them.
+/// </summary>
+public abstract class AlertService : DiscordClientService
 {
-    public Data.Data Data { get; set; }
-    public IConfiguration Configuration { get; set; }
-    public ILogger<AlertDiscordClientService> Logger { get; set; }
-    public AlertDiscordClientService(DiscordSocketClient client, ILogger<AlertDiscordClientService> logger,Data.Data data, IConfiguration configuration) : base(client, logger)
+    protected Data.Data Data { get; set; }
+    protected IConfiguration Configuration { get; set; }
+    protected new ILogger<AlertService> Logger { get; set; }
+
+    protected AlertService(DiscordSocketClient client, ILogger<AlertService> logger, Data.Data data,
+        IConfiguration configuration) : base(client, logger)
     {
         Data = data;
-        Configuration= configuration;
+        Configuration = configuration;
         Logger = logger;
     }
+
     /// <summary>
     ///     Sends a message either to channel or DM depending on the alert type.
     /// </summary>
     /// <param name="message">Message to be sent</param>
     /// <param name="alert">Alert whose target is sent the message.</param>
     /// <typeparam name="TAlert">QuestionAlert</typeparam>
-    private async Task SendAlertMessageAsync<TAlert>(string message, TAlert alert) where TAlert : Alert 
+    private async Task SendAlertMessageAsync<TAlert>(string message, TAlert alert) where TAlert : Alert
     {
         if (alert is UserQuestionAlert userAlert)
         {
             var target = await Client.GetUserAsync(userAlert.UserId);
             await target.SendMessageAsync(message);
         }
-        else if (alert is ChannelQuestionAlert channelAlert )
+        else if (alert is ChannelQuestionAlert channelAlert)
         {
             if (await Client.GetChannelAsync(channelAlert.ChannelId) is ITextChannel target)
                 await target.SendMessageAsync(message);
@@ -40,14 +46,15 @@ public abstract class AlertDiscordClientService : DiscordClientService
         else
         {
             if (alert is ChannelCategoryAlert channelCategoryAlert)
-            {
                 if (await Client.GetChannelAsync(channelCategoryAlert.ChannelId) is ITextChannel target)
                     foreach (var line in message.Split('\n')) // split to have a link on a separate line 
                         await target.SendMessageAsync(line);
-            }
         }
     }
 
+    /// <summary>
+    /// Reasons why the question is alerted.
+    /// </summary>
     protected enum AlertKind
     {
         Resolved,
@@ -61,7 +68,7 @@ public abstract class AlertDiscordClientService : DiscordClientService
     ///     Create message for an alert depending on its kind and send it.
     /// </summary>
     protected async Task CreateAlertMessageAndSendAsync<T>(Tuple<T, AlertQuestion> t, AlertKind kind)
-        where T : Alert 
+        where T : Alert
     {
         var (alert, question) = t;
         string message;
@@ -89,8 +96,8 @@ public abstract class AlertDiscordClientService : DiscordClientService
                 break;
             case AlertKind.New:
                 message = $"New question: {question.Title} \n{question.ShortUrl()}";
-                
-                break; 
+
+                break;
             default:
                 message = "";
                 break;

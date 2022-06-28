@@ -4,11 +4,15 @@ using Microsoft.CSharp.RuntimeBinder;
 namespace MetaculusDiscord.Model;
 
 /// <summary>
-///     Representation of a Metaculus question. Note that it has no constructor, because it's not possible to chain
-///     constructors from *dynamic*.
+///     Representation of a Metaculus question.
+/// <remarks>Note that it has no constructor, because it's not possible to chain constructors with *dynamic* parameter.
+/// This leads to that all the children have to set the common properties by themselves.</remarks>
 /// </summary>
 public abstract class Question
 {
+    /// <summary>
+    /// Supported question types.
+    /// </summary>
     public enum QuestionType
     {
         Continuous,
@@ -16,10 +20,10 @@ public abstract class Question
         Date
     }
 
-    public long Id { get; set; }
-    public string Title { get; set; } = "";
-    public QuestionType Type { get; set; }
-    public DateTime PublishTime { get; set; }
+    public long Id { get; protected init; }
+    public string Title { get; protected init; } = "";
+    public QuestionType Type { get; protected init; }
+    public DateTime PublishTime { get; protected init; }
 
     public string ShortUrl()
     {
@@ -36,16 +40,14 @@ public class SearchResultQuestion : Question
     {
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
-        string publishTime = dynamicQuestion.publish_time;
-        PublishTime = DateTime.Parse(publishTime);
+        PublishTime = DateTime.Parse((string) dynamicQuestion.publish_time);
         PageUrl = dynamicQuestion.page_url;
     }
 
     /// <summary>
     ///     Long page url so that the user can see the question title in it
     /// </summary>
-    public string PageUrl { get; set; }
-
+    public string PageUrl { get; }
 }
 
 /// <summary>
@@ -56,20 +58,18 @@ public class AlertQuestion : Question
     private readonly double _rawDayOldValue;
     private readonly double _rawSixHoursOldValue;
     private readonly double _rawValue;
-    private readonly DateTime _publishTime;
 
     /// <summary>
     ///     Parses the question with the predictions from a dynamic json object.
     /// </summary>
+    /// <remarks>Because the API is not consistent, there is some edge case handling and try blocks to avoid an error.</remarks>
     /// <param name="dynamicQuestion">Dynamic Json object, that supports the dot notation for getting its elements.</param>
     /// <exception cref="Exception">Throws exception when the type of the question isn't supported.</exception>
     public AlertQuestion(dynamic dynamicQuestion)
-    {  
-        //todo fix exception here for question 2646
+    {
         Id = dynamicQuestion.id;
         Title = dynamicQuestion.title;
-        // Console.WriteLine(Title);
-        PublishTime = DateTime.Parse((string)dynamicQuestion.publish_time);
+        PublishTime = DateTime.Parse((string) dynamicQuestion.publish_time);
 
         double? resolution = dynamicQuestion.resolution;
         _rawSixHoursOldValue =
@@ -79,9 +79,10 @@ public class AlertQuestion : Question
         if (resolution is null)
         {
             Resolved = false;
-            try{
-            _rawValue = dynamicQuestion.community_prediction.full.q2; // the current prediction 
-            } // sometimes this field is not in the api :(
+            try
+            {
+                _rawValue = dynamicQuestion.community_prediction.full.q2; // the current prediction 
+            } // sometimes this field is not in the API
             catch (RuntimeBinderException)
             {
                 _rawValue = 0;
@@ -95,13 +96,11 @@ public class AlertQuestion : Question
         else
         {
             Resolved = true;
-            _rawValue = (double) resolution; // convert it to something usable
+            _rawValue = (double) resolution;
         }
 
         string type = dynamicQuestion.possibilities.type;
-        string?
-            format = dynamicQuestion.possibilities
-                .format; // todo: test that this does not throw unrecoverable exception
+        string? format = dynamicQuestion.possibilities.format;
         switch (type)
         {
             case "binary":
@@ -113,11 +112,11 @@ public class AlertQuestion : Question
 
             case "continuous":
 
-                string min = dynamicQuestion.possibilities.scale.min;
-                string max = dynamicQuestion.possibilities.scale.max;
                 double derivRatio = dynamicQuestion.possibilities.scale.deriv_ratio;
                 if (format == "date")
                 {
+                    string min = dynamicQuestion.possibilities.scale.min;
+                    string max = dynamicQuestion.possibilities.scale.max;
                     Type = QuestionType.Date;
                     // string with date in format "yyyy-MM-dd"
                     var start = DateTime.Parse(min);
@@ -131,9 +130,9 @@ public class AlertQuestion : Question
                 }
                 else // format is numeric
                 {
+                    double start = dynamicQuestion.possibilities.scale.min;
+                    double end = dynamicQuestion.possibilities.scale.max;
                     Type = QuestionType.Continuous;
-                    var start = double.Parse(min);
-                    var end = double.Parse(max);
                     Value = ScaleNum(start, end, _rawValue, derivRatio);
                     DayOldValue = ScaleNum(start, end, _rawDayOldValue, derivRatio);
                     SixHoursOldValue = ScaleNum(start, end, _rawSixHoursOldValue, derivRatio);
@@ -145,10 +144,19 @@ public class AlertQuestion : Question
         }
     }
 
+    /// <summary>
+    /// For binary questions the median forecast and for continuous questions the value of the median.
+    /// </summary>
     public double Value { get; }
+
     public double DayOldValue { get; }
     public double SixHoursOldValue { get; }
+
+    /// <summary>
+    /// Date questions only. The value of the median forecast.
+    /// </summary>
     public DateTime? DateValue { get; }
+
     public DateTime? DayOldDateValue { get; }
     public DateTime? SixHoursOldDateValue { get; }
 
@@ -157,6 +165,12 @@ public class AlertQuestion : Question
     /// </summary>
     public bool? Resolved { get; set; }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="history">Dynamic object that holds the community prediction history.</param>
+    /// <param name="time">Time that we want to minimize distance to.</param>
+    /// <returns></returns>
     private double PredictionWithClosestTime(dynamic history, DateTime time)
     {
         // convert time to unix epoch
@@ -168,7 +182,15 @@ public class AlertQuestion : Question
         return 0;
     }
 
-    // recover date from 0-1 value
+    /// <summary>
+    /// The prediction is in in the range 0-1 and it's necessary to scale it to the range of the question.
+    /// </summary>
+    /// <remarks> *+- operators defined on DateTime do the hard work here.</remarks>
+    /// <param name="start">Start date of the forecast options.</param>
+    /// <param name="end">End date of the forecast options</param>
+    /// <param name="prediction">The prediction to be scale</param>
+    /// <param name="derivRatio"></param>
+    /// <returns>The scaled date.</returns>
     private static DateTime ScaleDate(DateTime start, DateTime end, double prediction, double derivRatio)
     {
         if (Math.Abs(derivRatio - 1) < 0.000001)
@@ -177,7 +199,10 @@ public class AlertQuestion : Question
         return start + (end - start) * (Math.Pow(derivRatio, prediction) - 1) / (derivRatio - 1);
     }
 
-    // recover number from 0-1 value
+    /// <summary>
+    /// Same as above but for continuous questions.
+    /// </summary>
+    /// <returns>The scaled number.</returns>
     private static double ScaleNum(double start, double end, double prediction, double derivRatio)
     {
         if (Math.Abs(derivRatio - 1) < 0.000001)
@@ -186,59 +211,71 @@ public class AlertQuestion : Question
         return start + (end - start) * (Math.Pow(derivRatio, prediction) - 1) / (derivRatio - 1);
     }
 
+    /// <returns>Whether the question changed more than the threshold in the last 6 hours. </returns>
     public bool Is6HourSwing(double threshold)
     {
+        if (_rawValue == 0) return false; // the 0 prediction would mean that no one has answered the question yet.
         if (Math.Abs(SixHourSwing()) > threshold)
             return true;
         return false;
     }
 
+    /// <returns>Whether the question changed more than the threshold in the last day. </returns>
     public bool IsDaySwing(double threshold)
     {
+        if (_rawValue == 0) return false; // the 0 prediction would mean that no one has answered the question yet.
         if (Math.Abs(DaySwing()) > threshold)
             return true;
         return false;
     }
 
-    /// <returns>Daily percent change</returns>
+    /// <returns>Daily percent change in the median prediction</returns>
     public double DaySwing()
     {
         return _rawValue - _rawDayOldValue;
     }
 
-    /// <returns>Six hour percent change</returns>
+    /// <returns>Six hour percent change in the median prediction</returns>
     public double SixHourSwing()
     {
         return _rawValue - _rawSixHoursOldValue;
     }
 
+    /// <returns>String representation of the value.</returns>
     public string ValueString()
     {
         return ValueString(Value, DateValue);
     }
 
+    /// <returns>String representation of the day old value.</returns>
     public string DayOldValueString()
     {
         return ValueString(DayOldValue, DayOldDateValue);
     }
 
+
+    /// <returns>String representation of the six hour old value.</returns>
     public string SixHoursOldValueString()
     {
         return ValueString(SixHoursOldValue, SixHoursOldDateValue);
     }
 
-    private string ValueString(double number, DateTime? time)
+    /// <summary>
+    /// Creates string representation depending on the question type.
+    /// </summary>
+    /// <param name="number">The value used for binary and numeric continuous questions.</param>
+    /// <param name="date">The value used for date questions</param>
+    /// <returns>String representation</returns>
+    private string ValueString(double number, DateTime? date)
     {
-        if (Type == QuestionType.Binary)
-            if (number > 0.995)
-                return "Yes"; 
-            else if (number < 0.005)
-                return "No";
-            else return Math.Round(number * 100, 2) + "%";
-        if (Type == QuestionType.Continuous)
-            return number.ToString(CultureInfo.CurrentCulture);
-        if (Type == QuestionType.Date)
-            return time!.Value.ToString("yyyy-MM-dd");
-        throw new Exception("Unknown question type");
+        return Type switch
+        {
+            QuestionType.Binary when number > 0.995 => "Yes",
+            QuestionType.Binary when number < 0.005 => "No",
+            QuestionType.Binary => Math.Round(number * 100, 2) + "%",
+            QuestionType.Continuous => number.ToString(CultureInfo.CurrentCulture),
+            QuestionType.Date => date!.Value.ToString("yyyy-MM-dd"),
+            _ => throw new Exception("Unknown question type")
+        };
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 namespace MetaculusDiscord.Data;
 
 /// <summary>
-///     Contains DbSets for objects that are stored in the database.
+///     Contains DbSets for alerts that are stored in the database.
 /// </summary>
 public class MetaculusContext : DbContext
 {
@@ -19,7 +19,9 @@ public class MetaculusContext : DbContext
     public DbSet<ChannelQuestionAlert> ChannelQuestionAlerts { get; set; }
     public DbSet<ChannelCategoryAlert> CategoryChannelAlerts { get; set; }
 
-
+    /// <summary>
+    /// Builds DbContext for the MetaculusContext with the connection string from the appsettings.json file.
+    /// </summary>
     public class MetaculusContextFactory : IDbContextFactory<MetaculusContext>
     {
         private readonly IConfiguration _config;
@@ -32,6 +34,7 @@ public class MetaculusContext : DbContext
                 .Build();
         }
 
+        ///<returns> context with the "Default" connection string.</returns>
         public MetaculusContext CreateDbContext()
         {
             var optionsBuilder = new DbContextOptionsBuilder<MetaculusContext>();

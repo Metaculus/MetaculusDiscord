@@ -7,17 +7,24 @@ using Newtonsoft.Json;
 
 namespace MetaculusDiscord.Modules;
 
+/// <summary>
+/// Superclass for both search modules which provides common static functionality.
+/// </summary>
 public class Search
 {
-    private static readonly HttpClient HttpClient = new();
-
-    public static string CreateResponseText(string query, MetaculusSearchResponse? response)
+    /// <summary>
+    /// Creates message text to be sent from the search results.
+    /// </summary>
+    /// <param name="query">What was searched.</param>
+    /// <param name="response">What was found.</param>
+    /// <returns>text of the message</returns>
+    private static string CreateResponseText(string query, SearchResponse? response)
     {
         if (response is null)
             return $"No results for query: {query}";
         if (response.Count == 0)
             return $"No results for query: {query}";
-
+        // directly return the single result
         if (response.Count == 1)
             return $"https://www.metaculus.com{response.Questions[0].PageUrl}";
 
@@ -27,35 +34,39 @@ public class Search
         for (; i < response.Count; i++)
         {
             var question = response.Questions[i];
-
+            // using emoji for numbers
             replyBuilder.Append(
-                $"{EmotesUtils.EmojiDict[i + 1]}: **{question.Title}**, Published: {question.PublishTime.ToString("yyyy-MM-dd")}\n");
+                $"{EmotesUtils.NumberEmoji[i + 1]}: **{question.Title}**, Published: {question.PublishTime.ToString("yyyy-MM-dd")}\n");
         }
 
         return replyBuilder.ToString();
     }
- //todo recactor this
-    public static Task<string?> GetStringResponseAsync(string url)
-    {
-        try
-        {
-            return HttpClient.GetStringAsync(url)!;
-        }
-        catch (Exception)
-        {
-            return Task.Run(() => (string?) null);
-        }
-    }
 
-    public static async Task<MetaculusSearchResponse?> SearchAsync(string query)
+    /// <summary>
+    /// Queries the API and parses the response to an extent so it can be printed.
+    /// </summary>
+    /// <param name="query">query string</param>
+    /// <returns>Task whose result are the parsed questions.</returns>
+    private static async Task<SearchResponse?> SearchAsync(string query)
     {
         var requestUrl = $"https://www.metaculus.com/api2/questions/?order_by=-rank&search={query}";
-        var jsonString = await GetStringResponseAsync(requestUrl);
-        if (jsonString is null) return null;
+        using HttpClient client = new();
+        string? jsonString;
+        try
+        {
+            jsonString = await client.GetStringAsync(requestUrl);
+        }
+        // catch exception when the request fails
+        catch (Exception e)
+        {
+            jsonString = null;
+        }
+
+        if (jsonString is null) return null; // there is nothing to parse
         var root = JsonConvert.DeserializeObject<dynamic>(jsonString);
         var results = root?.results;
         if (results is null || results.Count == 0) return null;
-        var response = new MetaculusSearchResponse();
+        var response = new SearchResponse();
         for (var i = 0; i < results?.Count; i++)
         {
             var dynamicQuestion = results?[i];
@@ -74,15 +85,15 @@ public class Search
             if (!response.AddQuestion(q)) break;
         }
 
-        if (response.Count == 0) return null;
-
-        return response;
+        // if we got no matching forecasts, return null
+        return response.Count == 0 ? null : response;
     }
 
+    /// <summary>
+    /// Module representing the regular command that performs a search.
+    /// </summary>
     public class SearchCommands : BotModuleBase
     {
-        private const int QueryResults = 5;
-
         public SearchCommands(Data.Data data) : base(data)
         {
         }
@@ -97,13 +108,15 @@ public class Search
             var replyText = CreateResponseText(query, response);
             var predictionReply = await Context.Channel.SendMessageAsync(replyText);
             if (response is null) return;
-            if (response.Count > 1) EmotesUtils.Decorate(predictionReply, response.Count);
             var messageLinks = new ResponseLinks(predictionReply.Id, response.Questions.Select(q => q.PageUrl));
             Data.TryAddResponse(messageLinks);
+            if (response.Count > 1) EmotesUtils.NumberDecorate(predictionReply, response.Count);
         }
     }
 
-
+    /// <summary>
+    /// Module with slash command that performs a search.
+    /// </summary>
     public class SearchSlash : BotInteractionModuleBase
     {
         public SearchSlash(Data.Data data) : base(data)
@@ -113,18 +126,16 @@ public class Search
         [SlashCommand("metaculus", "")]
         public async Task SearchCommand(string query)
         {
-            // there are only 3 seconds to respond, so first we have to
+            // Discord requires a response in 3 seconds, but that's often not enough time to produce the full response
             await RespondAsync($"searching {query}...");
             var response = await SearchAsync(query);
             var replyText = CreateResponseText(query, response);
 
             var reply = await Context.Interaction.FollowupAsync(replyText);
             if (response is null) return;
-            if (response.Count > 1) EmotesUtils.Decorate(reply, response.Count);
             var messageLinks = new ResponseLinks(reply.Id, response.Questions.Select(q => q.PageUrl));
             Data.TryAddResponse(messageLinks);
-            if (response.Count > 1)
-                EmotesUtils.Decorate(reply, response.Count);
+            if (response.Count > 1) EmotesUtils.NumberDecorate(reply, response.Count);
         }
     }
 }

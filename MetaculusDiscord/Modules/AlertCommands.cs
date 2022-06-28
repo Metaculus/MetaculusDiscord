@@ -4,12 +4,15 @@ using MetaculusDiscord.Model;
 
 namespace MetaculusDiscord.Modules;
 
+/// <summary>
+/// Commands for adding and removing single question alerts.
+/// </summary>
 public class AlertCommands : BotModuleBase
 {
     public AlertCommands(Data.Data data) : base(data)
     {
     }
-    
+
     [Command("alert")]
     public async Task SetUserAlert(int questionId)
     {

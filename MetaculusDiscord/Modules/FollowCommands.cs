@@ -6,6 +6,9 @@ using MetaculusDiscord.Utils;
 
 namespace MetaculusDiscord.Modules;
 
+/// <summary>
+/// Commands for following and unfollowing a category.
+/// </summary>
 public class FollowCommands : BotModuleBase
 {
     public FollowCommands(Data.Data data) : base(data)
@@ -15,20 +18,22 @@ public class FollowCommands : BotModuleBase
     [Command("followcategory")]
     public async Task FollowCategory(string categoryId)
     {
-        if (!(await ApiUtils.IsCategoryValid(categoryId)))
+        if (!await ApiUtils.IsCategoryValid(categoryId))
         {
             await Context.Channel.SendMessageAsync("Invalid category id");
         }
         else if (Context.Channel is IDMChannel)
+        {
             await Context.Channel.SendMessageAsync("Follow can only be used in a public channel.");
+        }
         else
         {
             var categoryAlert = new ChannelCategoryAlert()
             {
                 CategoryId = categoryId,
-                ChannelId = Context.Channel.Id,
+                ChannelId = Context.Channel.Id
             };
-            if (await Data.TryAddAlertAsync(categoryAlert)) 
+            if (await Data.TryAddAlertAsync(categoryAlert))
                 await Context.Channel.SendMessageAsync($"Now following category {categoryId}");
             else
                 await Context.Channel.SendMessageAsync("Already following category");
@@ -38,11 +43,11 @@ public class FollowCommands : BotModuleBase
     [Command("unfollowcategory")]
     public async Task UnfollowCategory(string categoryId)
     {
-        ulong channelId = Context.Channel.Id;
+        var channelId = Context.Channel.Id;
         var alert = new ChannelCategoryAlert()
         {
             CategoryId = categoryId,
-            ChannelId = channelId,
+            ChannelId = channelId
         };
         if (await Data.TryRemoveAlertAsync(alert))
             await Context.Channel.SendMessageAsync($"No longer following category {categoryId}");

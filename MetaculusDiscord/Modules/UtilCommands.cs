@@ -5,6 +5,9 @@ using Newtonsoft.Json;
 
 namespace MetaculusDiscord.Modules;
 
+/// <summary>
+/// Commands that don't interact with the bot state.
+/// </summary>
 public class UtilCommands : BotModuleBase
 {
     public UtilCommands(Data.Data data) : base(data)
@@ -15,33 +18,45 @@ public class UtilCommands : BotModuleBase
     public async Task Help()
     {
         await Context.Channel.SendMessageAsync(
-            "The bot currently supports the following commands: \n   `!mc search <query>`, `search` can be replaced by `s`" +
-            "\n" +
-            "to select from the results, press the reaction with the corresponding number");
-        //todo update this
+            @"type `/metaculus <query>` to search for a question.
+put a `:warning:` emoji on a message with a link to get notified of its updates
+
+For moderators:
+`!metac channelalert <question_id>` to set a channel to be notified question updates
+`!metac unchannelalert <question_id>` to remove a channel alert
+
+`!metac listcategories` to list all categories
+`!metac followcategory <category_id>` to follow a category in this channel.
+`!metac unfollowcategory <category_id>` to unfollow a category 
+
+(you can also use `!mc alert <id>` and `!mc unalert <id>` instead of the warning emoji)
+"
+        );
     }
-    
+
+    /// <summary> 
+    /// Gets the list of categories from: https://www.metaculus.com/api2/categories/?limit=999
+    /// parses it and sends it.
+    /// </summary>
     [Command("listcategories")]
     public async Task ListCategories()
     {
-        // get this: https://www.metaculus.com/api2/categories/?limit=999
-        // and parse it
-        using HttpClient client = new HttpClient();
-        string json = await client.GetStringAsync( "https://www.metaculus.com/api2/categories/?limit=999");
-        var obj = JsonConvert.DeserializeObject<dynamic>(json);
+        using var client = new HttpClient();
+        var json = await client.GetStringAsync("https://www.metaculus.com/api2/categories/?limit=999");
+        var dynamicResults = JsonConvert.DeserializeObject<dynamic>(json);
         StringBuilder sb = new();
         sb.Append("id : name \n");
-        foreach (var category in obj.results)
+        foreach (var category in dynamicResults?.results!)
         {
             sb.Append($"{category.id} : {category.short_name} \n");
+            // Discord limits messages to 2000 characters.
             if (sb.Length > 1800)
             {
                 await Context.Channel.SendMessageAsync(sb.ToString());
                 sb.Clear();
             }
-                
         }
-        await Context.Channel.SendMessageAsync(sb.ToString());
 
+        await Context.Channel.SendMessageAsync(sb.ToString());
     }
 }
