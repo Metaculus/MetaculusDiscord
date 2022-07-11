@@ -6,8 +6,8 @@ services:
     build:
       context: .
     environment:
-      - DOTNET__AppSettings__DiscordToken=random-value-by-test
-      - DOTNET__AppSettings__ConnectionStrings__Default=Server=db;Port=5432;Database=metaculus_discord_bot;User Id=metaculus_discord_user;Password=metaculus_discord_password;
+      - DiscordToken=${DISCORD_TOKEN}
+      - ConnectionStrings__Default=Server=db;Port=5432;Database=metaculus_discord_bot;User Id=metaculus_discord_user;Password=metaculus_discord_password;
     volumes:
       - ./appsettings_template.json:/app/appsettings.json
     depends_on:
