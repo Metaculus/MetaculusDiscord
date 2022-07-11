@@ -31,6 +31,8 @@ public class Program
                     .AddEnvironmentVariables()
                     .Build();
                 a.AddConfiguration(config);
+                /// var viewConfig = config.AsEnumerable().ToList();
+                /// viewConfig.ForEach(p => Console.WriteLine(p));
             }).ConfigureLogging(x =>
             {
                 x.AddConsole();
