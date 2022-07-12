@@ -55,6 +55,8 @@ If for some reason you want to run the bot, do this:
 
 The repo also contains a Dockerfile that will run the bot (though you'll still need to setup the database and `appsettings.json`).
 
+The */metaculus* command is bound to the Discord API key. Once with each new API key, somehow once call *InteractionHandler.MakeCommand()* to bind it and then avoid calling that method again. Avoid using the same keyword as other bots on the same servers (it should preferrably be unique for each bot).
+
 ### The purpose and the problems: 
 1. People don't have time to check forecasts on Metaculus, but they use discord daily.
 2. The most important thing for people is to know when a question has resolved or shifted significantly, therefore the bot's main purpose is to send these alerts.
@@ -116,6 +118,6 @@ Static classes for things needed throughout the bot.
 
 
 ## Final remarks
-All bugs should be attributed to me and not Metaculus, all the good things Metaculus does should be attributed to Metaculus and not me. 
+All bugs should be attributed to me (JanProvaznik) and not Metaculus, all the good things Metaculus does should be attributed to Metaculus and not me. 
 PRs are welcome, but if you fork and run the bot, please don't add it to a server that already contains this one.
 It should be simple to modify the app to use a different database (just search and replace .UseNpgsql in the code).
