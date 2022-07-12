@@ -29,7 +29,7 @@ public class CategoricalService : AlertService
         _timer = new Timer(30 * 1000);
 #else
         // Check once per day 
-        var timer = new System.Timers.Timer(24 * 60 * 60 * 1000);
+        _timer = new System.Timers.Timer(24 * 60 * 60 * 1000);
 #endif
         _timer.Elapsed += Digest;
         _timer.Enabled = true;

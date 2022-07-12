@@ -27,7 +27,9 @@ public class Program
         var builder = new HostBuilder().ConfigureAppConfiguration(a =>
             {
                 var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory())
-                    .AddJsonFile("appsettings.json", false, true).Build();
+                    .AddJsonFile("appsettings.json", false, true)
+                    .AddEnvironmentVariables()
+                    .Build();
                 a.AddConfiguration(config);
             }).ConfigureLogging(x =>
             {

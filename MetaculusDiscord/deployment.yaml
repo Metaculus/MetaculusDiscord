@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: discord-bot-deployment
+  labels:
+    app.kubernetes.io/name: discord-bot
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: discord-bot
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: discord-bot
+    spec:
+      containers:
+      - image: eu.gcr.io/root-quasar-329715/metaculusdiscord:c290c86
+        imagePullPolicy: Always
+        name: discord-bot
+        envFrom:
+        - secretRef:
+            name: discord-bot-secrets
+        resources:
+          limits:
+            cpu: 200m
+            memory: 300Mi

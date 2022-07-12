@@ -33,7 +33,7 @@ public class QuestionAlertService : AlertService
         _timer = new Timer(30 * 1000);
 # else
         // 6 hours
-        var timer = new System.Timers.Timer(6 * 60 * 60 * 1000);
+        _timer = new System.Timers.Timer(6 * 60 * 60 * 1000);
 #endif
         _timer.Elapsed += AlertAll;
         _timer.Enabled = true;

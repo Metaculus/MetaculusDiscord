@@ -31,6 +31,7 @@ public class MetaculusContext : DbContext
             _config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", false, true)
+                .AddEnvironmentVariables()
                 .Build();
         }
 

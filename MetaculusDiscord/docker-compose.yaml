@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  app:
+    image: eu.gcr.io/root-quasar-329715/metaculusdiscord
+    build:
+      context: .
+    environment:
+      - DiscordToken=${DISCORD_TOKEN}
+      - ConnectionStrings__Default=Server=db;Port=5432;Database=metaculus_discord_bot;User Id=metaculus_discord_user;Password=metaculus_discord_password;
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13-alpine
+    environment:
+      DB_NAME: metaculus_discord_bot
+      DB_USER: metaculus_discord_user
+      DB_PASSWORD: metaculus_discord_password
+      POSTGRES_PASSWORD: rootdbpassword
+    expose:
+      - 5432
+    ports:
+      - 5431:5432
+    volumes:
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+
