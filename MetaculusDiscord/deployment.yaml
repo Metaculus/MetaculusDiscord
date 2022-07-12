@@ -15,7 +15,7 @@ spec:
         app.kubernetes.io/name: discord-bot
     spec:
       containers:
-      - image: eu.gcr.io/root-quasar-329715/metaculusdiscord:bda72c9
+      - image: eu.gcr.io/root-quasar-329715/metaculusdiscord:c290c86
         imagePullPolicy: Always
         name: discord-bot
         envFrom:
