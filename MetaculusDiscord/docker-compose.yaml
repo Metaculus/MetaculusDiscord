@@ -2,14 +2,12 @@ version: "3.8"
 
 services:
   app:
-    image: metaculusdiscord:latest
+    image: eu.gcr.io/root-quasar-329715/metaculusdiscord
     build:
       context: .
     environment:
       - DiscordToken=${DISCORD_TOKEN}
       - ConnectionStrings__Default=Server=db;Port=5432;Database=metaculus_discord_bot;User Id=metaculus_discord_user;Password=metaculus_discord_password;
-    volumes:
-      - ./appsettings_template.json:/app/appsettings.json
     depends_on:
       - db
 
