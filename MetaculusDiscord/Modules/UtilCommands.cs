@@ -29,7 +29,7 @@ For moderators:
 `!metac followcategory <category_id>` to follow a category in this channel.
 `!metac unfollowcategory <category_id>` to unfollow a category 
 
-(you can also use `!mc alert <id>` and `!mc unalert <id>` instead of the warning emoji)
+(you can also use `!metac alert <id>` and `!metac unalert <id>` instead of the warning emoji)
 "
         );
     }
